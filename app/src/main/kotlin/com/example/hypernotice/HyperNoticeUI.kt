@@ -1,6 +1,7 @@
 package com.example.hypernotice
 
 import android.view.HapticFeedbackConstants
+import android.view.View
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -32,6 +33,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 val C_Bg = Color(0xFFFFFFFF)
@@ -41,6 +43,7 @@ val C_Sub = Color(0x99000000)
 val C_White = Color(0xFFFFFFFF)
 val C_Track = Color(0xFFE5E5EA)
 
+// Switch
 @Composable
 fun MiuiSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -63,6 +66,7 @@ fun MiuiSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
     }
 }
 
+// Slider — 轨道起止对齐滑块边缘
 @Composable
 fun MiuiSlider(
     value: Float,
@@ -75,6 +79,7 @@ fun MiuiSlider(
     var isDragging by remember { mutableStateOf(false) }
     var layoutWidth by remember { mutableIntStateOf(1) }
     var layoutHeight by remember { mutableIntStateOf(28) }
+    var lastHapticVal by remember { mutableFloatStateOf(-999f) }
 
     val thumbScale by animateFloatAsState(
         targetValue = if (isPressed || isDragging) 1.127f else 1f,
@@ -85,7 +90,7 @@ fun MiuiSlider(
         animationSpec = if (isDragging) spring(0.9f, 1755f) else spring(0.96f, 322f)
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxWidth().height(40.dp).wrapContentHeight(Alignment.CenterVertically)
             .padding(vertical = 4.dp)
             .onSizeChanged { layoutWidth = it.width; layoutHeight = it.height }
@@ -94,6 +99,7 @@ fun MiuiSlider(
                     onDragStart = {
                         isDragging = true
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        lastHapticVal = -999f
                     },
                     onDragEnd = { isDragging = false },
                     onDragCancel = { isDragging = false },
@@ -101,20 +107,35 @@ fun MiuiSlider(
                         change.consume()
                         val tr = layoutHeight.toFloat() / 2f
                         val avail = (layoutWidth - 2f * tr).coerceAtLeast(1f)
-                        val fraction = ((change.position.x - tr) / avail).coerceIn(0f, 1f)
-                        val newVal = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
-                        onValueChange(newVal.coerceIn(valueRange))
+                        val frac = ((change.position.x - tr) / avail).coerceIn(0f, 1f)
+                        val newVal = valueRange.start + frac * (valueRange.endInclusive - valueRange.start)
+                        val clamped = newVal.coerceIn(valueRange)
+                        onValueChange(clamped)
+                        // 每变化一次振动（过滤噪声）
+                        if (abs(clamped - lastHapticVal) > (valueRange.endInclusive - valueRange.start) * 0.02f) {
+                            view.performHapticFeedback(HapticFeedbackConstants.TEXT_HELP)
+                            lastHapticVal = clamped
+                        }
                     }
                 )
             }
     ) {
+        val totalWidth = layoutWidth.toFloat()
+        val tr = layoutHeight.toFloat() / 2f
+        val avail = (totalWidth - 2f * tr).coerceAtLeast(1f)
+        val frac = ((animatedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+        val midX = tr + frac * avail
+
         Canvas(modifier = Modifier.fillMaxSize()) {
             val h = size.height; val w = size.width
-            val r = h / 2f; val midY = h / 2f
-            val frac = ((animatedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
-            val midX = r + frac * (w - 2f * r)
-            drawLine(C_Track, Offset(0f, midY), Offset(w, midY), h, cap = StrokeCap.Round)
-            drawLine(C_Accent, Offset(0f, midY), Offset(midX, midY), h, cap = StrokeCap.Round)
+            val r = h / 2f
+            val midY = h / 2f
+
+            // 灰色轨道：从滑块左边缘到右边缘
+            drawLine(C_Track, Offset(r, midY), Offset(w - r, midY), h, cap = StrokeCap.Round)
+            // 蓝色激活轨道：从最左到滑块当前位置
+            drawLine(C_Accent, Offset(r, midY), Offset(midX, midY), h, cap = StrokeCap.Round)
+            // 白色滑块
             drawCircle(C_White, r * 0.72f * thumbScale, Offset(midX, midY))
         }
     }
@@ -147,7 +168,10 @@ fun HapticSwitchItem(title: String, summary: String, checked: Boolean, onChecked
             Text(title, color = C_Text, fontSize = 16.sp)
             if (summary.isNotEmpty()) { Spacer(Modifier.height(2.dp)); Text(summary, color = C_Sub, fontSize = 12.sp) }
         }
-        MiuiSwitch(lc) { view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); lc = it; onCheckedChange(it) }
+        MiuiSwitch(lc) {
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            lc = it; onCheckedChange(it)
+        }
     }
 }
 
@@ -174,7 +198,7 @@ fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
 @Composable
 fun SliderPage(onBack: () -> Unit) {
     val view = LocalView.current
-    Column(Modifier.fillMaxSize().background(C_Bg).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
         Row(
             Modifier.fillMaxWidth()
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
@@ -184,7 +208,7 @@ fun SliderPage(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp) }
         Spacer(Modifier.height(8.dp))
-        Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+        Text("位置调整", fontSize = 13.sp, color = C_Sub, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
             var y by remember { mutableFloatStateOf(45f) }
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -232,7 +256,7 @@ fun HyperNoticeApp() {
     var show by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     if (show) { SliderPage { show = false }; return }
-    Column(Modifier.fillMaxSize().background(C_Bg).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
         Spacer(Modifier.height(16.dp))
         Text("功能开关", fontSize = 13.sp, color = C_Sub, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
