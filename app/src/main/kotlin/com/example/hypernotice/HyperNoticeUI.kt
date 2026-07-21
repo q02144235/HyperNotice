@@ -303,6 +303,8 @@ fun HyperNoticeApp() {
             ) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🔔", fontSize = 54.sp)
+                        Spacer(Modifier.height(10.dp))
                         Text("HyperNotice", color = C_Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     }
                 }
