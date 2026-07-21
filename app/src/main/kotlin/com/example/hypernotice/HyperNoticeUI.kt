@@ -1,24 +1,20 @@
 package com.example.hypernotice
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -238,15 +234,41 @@ fun SliderPage(onBack: () -> Unit) {
         )
     }
 
-    BackHandler(enabled = true) { onBack() }
+    var swipeOffset by remember { mutableFloatStateOf(0f) }
+    var swiping by remember { mutableStateOf(false) }
+    val swipeAnim by animateFloatAsState(
+        targetValue = if (swiping) swipeOffset else 0f,
+        animationSpec = if (swiping) snap() else tween(250),
+        label = "swipe"
+    )
 
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
+                .offset(x = swipeAnim.dp)
                 .background(C_Bg)
                 .systemBarsPadding()
                 .verticalScroll(scrollState)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { swiping = true },
+                        onDragEnd = {
+                            if (swipeOffset > 150f) {
+                                onBack()
+                            }
+                            swiping = false
+                            swipeOffset = 0f
+                        },
+                        onDragCancel = {
+                            swiping = false
+                            swipeOffset = 0f
+                        },
+                        onHorizontalDrag = { _, drag ->
+                            swipeOffset = (swipeOffset + drag).coerceAtLeast(0f)
+                        }
+                    )
+                }
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
