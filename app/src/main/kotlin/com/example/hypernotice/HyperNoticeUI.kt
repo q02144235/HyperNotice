@@ -18,54 +18,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 val C_Bg = Color(0xFFFFFFFF)
 val C_Card = Color(0xFFFFFFFF)
 val C_Accent = Color(0xFF3482FF)
 val C_Text = Color(0xCC000000)
 val C_Sub = Color(0x99000000)
-val C_SearchBg = Color(0xFFF2F2F2)
-val C_NavOff = Color(0xFF8E8E93)
 val C_White = Color(0xFFFFFFFF)
 val C_SwitchTrack = Color(0xFFE5E5EA)
-val C_SliderTrack = Color(0xFFC7C7CC)
-val C_SliderTrackActive = Color(0xFF3482FF)
-
-@Composable
-fun MiuiSearchBar() {
-    Box(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(36.dp)
-            .background(C_SearchBg, RoundedCornerShape(10.dp)),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text("🔍  搜索设置", color = C_Sub, fontSize = 14.sp, modifier = Modifier.padding(start = 12.dp))
-    }
-}
-
-@Composable
-fun MiuiSectionTitle(title: String) {
-    Text(title, color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 6.dp))
-}
 
 @Composable
 fun MiuiCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = C_Card),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp), content = content)
+        Column(content = content)
     }
 }
 
 @Composable
 fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    var localChecked by remember { mutableStateOf(checked) }
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) { onCheckedChange(!checked) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { localChecked = !localChecked; onCheckedChange(localChecked) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -76,12 +61,15 @@ fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedCh
             }
         }
         Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
+            checked = localChecked,
+            onCheckedChange = { localChecked = it; onCheckedChange(it) },
             colors = SwitchDefaults.colors(
-                checkedThumbColor = C_White, checkedTrackColor = C_Accent,
-                uncheckedThumbColor = C_White, uncheckedTrackColor = C_SwitchTrack,
-                uncheckedBorderColor = Color.Transparent, checkedBorderColor = Color.Transparent
+                checkedThumbColor = C_White,
+                checkedTrackColor = C_Accent,
+                uncheckedThumbColor = C_White,
+                uncheckedTrackColor = C_SwitchTrack,
+                uncheckedBorderColor = Color.Transparent,
+                checkedBorderColor = Color.Transparent
             )
         )
     }
@@ -90,10 +78,13 @@ fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedCh
 @Composable
 fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -103,95 +94,154 @@ fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
                 Text(summary, color = C_Sub, fontSize = 12.sp)
             }
         }
-        Text("›", color = C_NavOff, fontSize = 24.sp, fontWeight = FontWeight.Light)
-    }
-}
-
-@Composable
-fun MiuiSliderItem(label: String, suffix: String) {
-    var sliderValue by remember { mutableFloatStateOf(50f) }
-    Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = C_Text, fontSize = 16.sp, modifier = Modifier.width(72.dp))
-        Slider(
-            value = sliderValue,
-            onValueChange = { sliderValue = it },
-            valueRange = 0f..200f,
-            modifier = Modifier.weight(1f).height(40.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = C_Accent,
-                activeTrackColor = C_SliderTrackActive,
-                inactiveTrackColor = C_SliderTrack,
-                inactiveTickColor = Color.Transparent,
-                activeTickColor = Color.Transparent
-            )
-        )
-        Text("${sliderValue.toInt()}$suffix", color = C_Sub, fontSize = 14.sp, modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
-    }
-}
-
-@Composable
-fun SliderPage(title: String, onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().background(C_Bg)) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(52.dp).background(C_Card).clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) { onBack() },
-            contentAlignment = Alignment.CenterStart
-        ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp, modifier = Modifier.padding(start = 16.dp)) }
-
-        Spacer(Modifier.height(12.dp))
-        MiuiSearchBar()
-        Spacer(Modifier.height(12.dp))
-        MiuiSectionTitle(title)
-        MiuiCard {
-            MiuiSliderItem("Y 轴偏移", "dp")
-            MiuiSliderItem("动画时长", "ms")
-            MiuiSliderItem("圆角大小", "dp")
-            MiuiSliderItem("透明度", "%")
-            MiuiSliderItem("宽度", "%")
-            MiuiSliderItem("内边距", "dp")
-        }
-        Spacer(Modifier.weight(1f))
-        Button(
-            onClick = onBack,
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = C_Accent, contentColor = C_White),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(44.dp)
-        ) { Text("完成", fontSize = 16.sp) }
-        Spacer(Modifier.height(32.dp))
+        Text("›", color = Color(0xFF8E8E93), fontSize = 24.sp, fontWeight = FontWeight.Light)
     }
 }
 
 @Composable
 fun HyperNoticeApp() {
-    var currentPage by remember { mutableStateOf("") }
+    var showSlider by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scroll = rememberScrollState()
 
-    if (currentPage.isNotEmpty()) {
-        SliderPage(currentPage) { currentPage = "" }
+    val noRipple = remember { MutableInteractionSource() }
+
+    if (showSlider) {
+        Column(modifier = Modifier.fillMaxSize().background(C_Bg).verticalScroll(scroll)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { showSlider = false }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp) }
+            Spacer(Modifier.height(8.dp))
+
+            Text("功能开关", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+            MiuiCard {
+                MiuiSwitchItem("开启焦点通知上移", "将通知位置向上移动", true) { }
+                MiuiSwitchItem("开启纯黑背景", "使用纯黑作为通知背景", false) { }
+                MiuiSwitchItem("显示应用名称", "显示来源应用名称", true) { }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+            MiuiCard {
+                // Y轴
+                var yVal by remember { mutableFloatStateOf(45f) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Y 轴偏移", color = C_Text, fontSize = 14.sp, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = yVal,
+                        onValueChange = { yVal = it },
+                        valueRange = 0f..100f,
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = C_Accent,
+                            activeTrackColor = C_Accent,
+                            inactiveTrackColor = C_SwitchTrack,
+                            inactiveTickColor = Color.Transparent,
+                            activeTickColor = Color.Transparent
+                        )
+                    )
+                    Text("${yVal.roundToInt()}dp", color = C_Sub, fontSize = 13.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
+                }
+                // 动画时长
+                var dVal by remember { mutableFloatStateOf(300f) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("动画时长", color = C_Text, fontSize = 14.sp, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = dVal,
+                        onValueChange = { dVal = it },
+                        valueRange = 0f..1000f,
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = C_Accent,
+                            activeTrackColor = C_Accent,
+                            inactiveTrackColor = C_SwitchTrack,
+                            inactiveTickColor = Color.Transparent,
+                            activeTickColor = Color.Transparent
+                        )
+                    )
+                    Text("${dVal.roundToInt()}ms", color = C_Sub, fontSize = 13.sp, modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
+                }
+                // 圆角大小
+                var rVal by remember { mutableFloatStateOf(16f) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("圆角大小", color = C_Text, fontSize = 14.sp, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = rVal,
+                        onValueChange = { rVal = it },
+                        valueRange = 0f..50f,
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = C_Accent,
+                            activeTrackColor = C_Accent,
+                            inactiveTrackColor = C_SwitchTrack,
+                            inactiveTickColor = Color.Transparent,
+                            activeTickColor = Color.Transparent
+                        )
+                    )
+                    Text("${rVal.roundToInt()}dp", color = C_Sub, fontSize = 13.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
+                }
+                // 透明度
+                var aVal by remember { mutableFloatStateOf(95f) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("透明度", color = C_Text, fontSize = 14.sp, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = aVal,
+                        onValueChange = { aVal = it },
+                        valueRange = 0f..100f,
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = C_Accent,
+                            activeTrackColor = C_Accent,
+                            inactiveTrackColor = C_SwitchTrack,
+                            inactiveTickColor = Color.Transparent,
+                            activeTickColor = Color.Transparent
+                        )
+                    )
+                    Text("${aVal.roundToInt()}%", color = C_Sub, fontSize = 13.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("关于", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+            MiuiCard {
+                MiuiArrowItem("HyperNotice", "v1.0.0") { Toast.makeText(context, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show() }
+                MiuiArrowItem("GitHub", "q02144235/HyperNotice") { Toast.makeText(context, "GitHub: q02144235/HyperNotice", Toast.LENGTH_SHORT).show() }
+            }
+            Spacer(Modifier.height(80.dp))
+        }
         return
     }
 
+    // 主页
     Column(modifier = Modifier.fillMaxSize().background(C_Bg).verticalScroll(scroll)) {
-        Spacer(Modifier.height(12.dp))
-        MiuiSearchBar()
-        Spacer(Modifier.height(12.dp))
-        MiuiSectionTitle("功能开关")
+        Spacer(Modifier.height(16.dp))
+        Text("功能开关", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
             MiuiSwitchItem("开启焦点通知上移", "将通知位置向上移动", true) { }
             MiuiSwitchItem("开启纯黑背景", "使用纯黑作为通知背景", false) { }
             MiuiSwitchItem("显示应用名称", "显示来源应用名称", true) { }
         }
-        MiuiSectionTitle("位置调整")
+        Spacer(Modifier.height(24.dp))
+        Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
-            MiuiArrowItem("位置与外观", "Y轴偏移 | 圆角 | 透明度") { currentPage = "位置调整" }
+            MiuiArrowItem("位置与外观", "Y轴偏移 | 动画时长 | 圆角 | 透明度") { showSlider = true }
         }
-        MiuiSectionTitle("关于")
+        Spacer(Modifier.height(24.dp))
+        Text("关于", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
             MiuiArrowItem("HyperNotice", "v1.0.0") { Toast.makeText(context, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show() }
             MiuiArrowItem("GitHub", "q02144235/HyperNotice") { Toast.makeText(context, "GitHub: q02144235/HyperNotice", Toast.LENGTH_SHORT).show() }
