@@ -4,7 +4,7 @@
         android:allowBackup="true"
         android:label="HyperNotice"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
         <activity
             android:name="com.example.hypernotice.SettingsActivity"
             android:exported="true">
