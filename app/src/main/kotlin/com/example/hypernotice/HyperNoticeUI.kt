@@ -330,7 +330,17 @@ fun HyperNoticeApp() {
             ) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("✨", fontSize = 54.sp)
+                        val bmp = remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+                        LaunchedEffect(Unit) {
+                            bmp.value = try {
+                                android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.qwq)
+                            } catch (_: Exception) { null }
+                        }
+                        bmp.value?.let { b ->
+                            Image(b.asImageBitmap(), null,
+                                Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)),
+                                contentScale = ContentScale.Crop)
+                        }
                         Spacer(Modifier.height(10.dp))
                         Text("HyperNotice", color = C_Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     }
