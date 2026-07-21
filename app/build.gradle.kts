@@ -39,5 +39,4 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
-    compileOnly("de.robv.android.xposed:api:82")
 }
