@@ -1,6 +1,8 @@
-package com.example.hypernotice
+﻿package com.example.hypernotice
 
 class MainHook {
-    // LSPosed entry point – hooks will be added after basic build succeeds
-    // xposed api dep will be added then
+    init {
+        // Empty entry point – hook code added later
+        // LSPosed requires this class to exist for XposedInit.list
+    }
 }
