@@ -14,6 +14,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - name: Fix gradlew permission
+        run: chmod +x gradlew
+        shell: bash
       - name: Build APK
         uses: gradle/gradle-build-action@v2
         with:
