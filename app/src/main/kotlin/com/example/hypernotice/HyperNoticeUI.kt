@@ -1,4 +1,4 @@
-package com.example.hypernotice
+﻿package com.example.hypernotice
 
 import android.app.Activity
 import android.app.AlertDialog
@@ -346,3 +346,4 @@ fun HyperNoticeApp() {
         }
     }
 }
+
