@@ -1,8 +1,8 @@
 package com.example.hypernotice
 
-import android.app.AndroidAppHelper
-import android.content.SharedPreferences
+import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -21,218 +21,183 @@ class MainHook : IXposedHookLoadPackage {
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (lpparam.packageName != "com.android.systemui") return
 
-        XposedBridge.log("[HyperNotice] Loaded into SystemUI")
+        XposedBridge.log("[HyperNotice] === Loaded into SystemUI ===")
 
         prefs = XSharedPreferences(PREFS_NAME)
         prefs?.makeWorldReadable()
 
+        hookFocusedNotifPromptView(lpparam.classLoader)
+        hookFocusedNotifPromptController(lpparam.classLoader)
+
+        XposedBridge.log("[HyperNotice] === All hooks registered ===")
+    }
+
+    // ============================================================
+    // Hook 1: FocusedNotifPromptView — 视图布局时修改
+    // ============================================================
+    private fun hookFocusedNotifPromptView(cl: ClassLoader) {
         try {
-            XposedBridge.log("[HyperNotice] Starting debug discovery...")
-            discoverAndHook(lpparam.classLoader)
-        } catch (t: Throwable) {
-            XposedBridge.log("[HyperNotice] Error: " + t.message)
-            tryDirectHooks()
+            val viewClz = XposedHelpers.findClass(
+                "com.android.systemui.statusbar.phone.FocusedNotifPromptView", cl)
+            XposedBridge.log("[HyperNotice] ✓ Found FocusedNotifPromptView")
+
+            // Hook onLayout — 每次布局后调整
+            XposedHelpers.findAndHookMethod(
+                viewClz, "onLayout", Boolean::class.java,
+                Int::class.java, Int::class.java, Int::class.java, Int::class.java,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        adjustView(param.thisObject as View)
+                    }
+                })
+
+            // Hook onAttachedToWindow
+            XposedHelpers.findAndHookMethod(
+                viewClz, "onAttachedToWindow",
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        adjustView(param.thisObject as View)
+                    }
+                })
+
+            XposedBridge.log("[HyperNotice] ✓ Hooked FocusedNotifPromptView.onLayout")
+        } catch (e: Exception) {
+            XposedBridge.log("[HyperNotice] ✗ FocusedNotifPromptView: ${e.message}")
         }
     }
 
-    private fun discoverAndHook(cl: ClassLoader) {
-        // Method 1: Try to find FocusNotificationController by scanning known packages
-        val candidates = listOf(
-            "miui.systemui.notification.focus.FocusNotificationController",
-            "miui.systemui.notification.FocusNotificationController",
-            "com.android.systemui.notification.focus.FocusNotificationController",
-            "com.android.systemui.focus.FocusNotificationController",
-            "miui.systemui.controlcenter.notification.focus.FocusNotificationController"
-        )
+    // ============================================================
+    // Hook 2: FocusedNotifPromptController — 更新时调整
+    // ============================================================
+    private fun hookFocusedNotifPromptController(cl: ClassLoader) {
+        try {
+            val ctrlClz = XposedHelpers.findClass(
+                "com.android.systemui.statusbar.phone.FocusedNotifPromptController", cl)
+            XposedBridge.log("[HyperNotice] ✓ Found FocusedNotifPromptController")
 
-        for (candidate in candidates) {
+            // Hook update(int)
+            XposedHelpers.findAndHookMethod(
+                ctrlClz, "update", Int::class.java,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        try {
+                            val view = XposedHelpers.getObjectField(
+                                param.thisObject, "mView") as? View
+                            view?.let { adjustView(it) }
+                        } catch (_: Exception) {}
+                    }
+                })
+
+            // Hook setView
+            XposedHelpers.findAndHookMethod(
+                ctrlClz, "setView",
+                XposedHelpers.findClass(
+                    "com.android.systemui.statusbar.phone.FocusedNotifPromptView", cl),
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        try {
+                            val view = param.args[0] as? View
+                            view?.let { adjustView(it) }
+                        } catch (_: Exception) {}
+                    }
+                })
+
+            XposedBridge.log("[HyperNotice] ✓ Hooked FocusedNotifPromptController")
+        } catch (e: Exception) {
+            XposedBridge.log("[HyperNotice] ✗ FocusedNotifPromptController: ${e.message}")
+        }
+    }
+
+    // ============================================================
+    // 核心：调整视图
+    // ============================================================
+    private fun adjustView(view: View) {
+        try {
+            prefs?.reload()
+        } catch (_: Exception) {}
+
+        val yOffset = getPrefInt("y_offset", 45)
+        val moveUp = getPrefBoolean("move_up_punchhole", false)
+        val darkBg = getPrefBoolean("dark_bg", false)
+        val opacity = getPrefInt("opacity", 95)
+        val cornerRadius = getPrefInt("corner_radius", 16)
+        val replaceText = getPrefBoolean("replace_text", false)
+        val hideStatus = getPrefBoolean("hide_status_bar", false)
+
+        val ctx = view.context
+        val density = ctx.resources.displayMetrics.density
+
+        // 1. Y轴偏移 — 用 translationY，不影响布局流程
+        if (moveUp || yOffset != 45) {
+            val offsetPx = -(yOffset * density).toInt()
+            view.translationY = offsetPx.toFloat()
+            XposedBridge.log("[HyperNotice] translationY=$offsetPx (${yOffset}dp)")
+        }
+
+        // 2. 纯黑背景
+        if (darkBg) {
+            view.setBackgroundColor(Color.BLACK)
+        }
+
+        // 3. 透明度
+        if (opacity < 100) {
+            view.alpha = opacity / 100f
+        }
+
+        // 4. 圆角
+        if (cornerRadius > 0) {
             try {
-                val clz = Class.forName(candidate, false, cl)
-                XposedBridge.log("[HyperNotice] Found class: $candidate")
-                hookFocusClass(clz)
-                return  // Found and hooked
-            } catch (_: ClassNotFoundException) {
-                continue
+                view.setClipToOutline(true)
+                val bg = view.background
+                if (bg is GradientDrawable) {
+                    bg.cornerRadius = cornerRadius * density
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 5. 替换文字
+        if (replaceText) {
+            replaceTextRecursive(view)
+        }
+
+        // 6. 隐藏状态栏 — 找父容器中的状态栏
+        if (hideStatus) {
+            try {
+                var parent = view.parent
+                while (parent is ViewGroup) {
+                    for (i in 0 until parent.childCount) {
+                        val child = parent.getChildAt(i)
+                        if (child.tag?.toString()?.contains("status", true) == true) {
+                            child.visibility = View.GONE
+                        }
+                    }
+                    parent = parent.parent
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun replaceTextRecursive(view: View) {
+        if (view is TextView) {
+            val text = view.text.toString()
+            if (text.contains("通知")) {
+                view.text = text.replace("通知", "通知通知")
             }
         }
-
-        // Method 2: Try dynamic island classes
-        val diCandidates = listOf(
-            "miui.systemui.dynamicisland.window.content.DynamicIslandBaseContentView",
-            "miui.systemui.dynamicisland.content.DynamicIslandBaseContentView",
-            "com.android.systemui.dynamicisland.DynamicIslandBaseContentView",
-            "miui.systemui.dynamicisland.window.DynamicIslandWindowViewController"
-        )
-
-        for (candidate in diCandidates) {
-            try {
-                val clz = Class.forName(candidate, false, cl)
-                XposedBridge.log("[HyperNotice] Found DI class: $candidate")
-                hookDynamicIslandClass(clz)
-                return
-            } catch (_: ClassNotFoundException) {
-                continue
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                replaceTextRecursive(view.getChildAt(i))
             }
         }
-
-        // Method 3: Try notification stack / window classes
-        val nCandidates = listOf(
-            "miui.systemui.notification.NotificationViewController",
-            "com.android.systemui.statusbar.phone.NotificationPanelView",
-            "miui.systemui.controlcenter.notification.MiuiNotificationViewController"
-        )
-
-        for (candidate in nCandidates) {
-            try {
-                val clz = Class.forName(candidate, false, cl)
-                XposedBridge.log("[HyperNotice] Found notify class: $candidate")
-                hookNotificationView(clz)
-                return
-            } catch (_: ClassNotFoundException) {
-                continue
-            }
-        }
-
-        XposedBridge.log("[HyperNotice] No known classes found, falling back to direct hooks")
-        tryDirectHooks()
     }
 
-    private fun hookFocusClass(clz: Class<*>) {
-        XposedBridge.log("[HyperNotice] Hooking: $clz")
-
-        // Hook position update
-        try {
-            XposedHelpers.findAndHookMethod(clz, "updatePosition", object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    val yOffset = getPrefInt("y_offset", 45)
-                    try {
-                        XposedHelpers.setObjectField(param.thisObject, "yOffset", yOffset)
-                        XposedBridge.log("[HyperNotice] Set yOffset=$yOffset")
-                    } catch (e: Exception) {
-                        XposedBridge.log("[HyperNotice] set yOffset failed: ${e.message}")
-                    }
-                }
-            })
-            XposedBridge.log("[HyperNotice] Hooked updatePosition")
-        } catch (e: Throwable) {
-            XposedBridge.log("[HyperNotice] updatePosition hook failed: ${e.message}")
-        }
-
-        // Hook background
-        try {
-            XposedHelpers.findAndHookMethod(clz, "updateBackground", object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    if (!getPrefBoolean("dark_bg", false)) return
-                    try {
-                        val view = XposedHelpers.getObjectField(param.thisObject, "view") as? View
-                        view?.setBackgroundColor(Color.BLACK)
-                        XposedBridge.log("[HyperNotice] Set dark background")
-                    } catch (e: Exception) {
-                        XposedBridge.log("[HyperNotice] dark bg failed: ${e.message}")
-                    }
-                }
-            })
-            XposedBridge.log("[HyperNotice] Hooked updateBackground")
-        } catch (e: Throwable) {
-            XposedBridge.log("[HyperNotice] updateBackground hook failed: ${e.message}")
-        }
-
-        // Hook hide status bar
-        try {
-            XposedHelpers.findAndHookMethod(clz, "onFocusNotificationShow", object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    if (!getPrefBoolean("hide_status_bar", false)) return
-                    try {
-                        val view = XposedHelpers.getObjectField(param.thisObject, "view") as? View
-                        val root = view?.rootView as? ViewGroup
-                        // Find status bar in the hierarchy and hide it
-                        XposedBridge.log("[HyperNotice] Hiding status bar during focus notification")
-                    } catch (e: Exception) {
-                        XposedBridge.log("[HyperNotice] hide status bar failed: ${e.message}")
-                    }
-                }
-            })
-        } catch (e: Throwable) {
-            XposedBridge.log("[HyperNotice] hide status bar hook failed: ${e.message}")
-        }
-    }
-
-    private fun hookDynamicIslandClass(clz: Class<*>) {
-        XposedBridge.log("[HyperNotice] Hooking DI: $clz")
-
-        try {
-            val m = XposedHelpers.findMethodExact(clz, "setCutoutY", Int::class.java)
-            XposedHelpers.findAndHookMethod(clz, "setCutoutY", Int::class.java, object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    val yOffset = getPrefInt("y_offset", 45)
-                    param.args[0] = yOffset
-                    XposedBridge.log("[HyperNotice] DI: setCutoutY -> $yOffset")
-                }
-            })
-        } catch (e: Throwable) {
-            XposedBridge.log("[HyperNotice] DI setCutoutY hook failed: ${e.message}")
-
-            // Try setY/setTranslationY
-            try {
-                val methods = clz.declaredMethods
-                for (m in methods) {
-                    if (m.name.contains("Y") && m.parameterTypes.size == 1 && m.parameterTypes[0] == Int::class.java) {
-                        XposedBridge.log("[HyperNotice] Found method: ${m.name}")
-                    }
-                }
-            } catch (_: Exception) { }
-        }
-    }
-
-    private fun hookNotificationView(clz: Class<*>) {
-        XposedBridge.log("[HyperNotice] Hooking notification view: $clz")
-
-        try {
-            XposedHelpers.findAndHookMethod(clz, "onFinishInflate", object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    if (!getPrefBoolean("dark_bg", false)) return
-                    try {
-                        val view = param.thisObject as? View
-                        view?.setBackgroundColor(Color.BLACK)
-                        XposedBridge.log("[HyperNotice] Notification view bg set to black")
-                    } catch (e: Exception) {
-                        XposedBridge.log("[HyperNotice] Notif view bg: ${e.message}")
-                    }
-                }
-            })
-        } catch (_: Throwable) { }
-    }
-
-    private fun tryDirectHooks() {
-        // Universal hooks that work regardless of class name
-        XposedBridge.log("[HyperNotice] Trying universal hooks...")
-
-        // Hook the View.invalidate() to catch focus notification rendering
-        try {
-            XposedHelpers.findAndHookMethod(View::class.java, "onDraw", android.graphics.Canvas::class.java, object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    val view = param.thisObject as? View ?: return
-                    val ctx = view.context ?: return
-                    if (ctx.packageName != "com.android.systemui") return
-                    // Too heavy to log every draw - skip for now
-                }
-            })
-        } catch (_: Throwable) { }
-
-        XposedBridge.log("[HyperNotice] Direct hooks done")
-    }
-
+    // ============================================================
+    // Preference helpers
+    // ============================================================
     private fun getPrefInt(key: String, default: Int): Int {
         return try {
             prefs?.reload()
             prefs?.getInt(key, default) ?: default
-        } catch (_: Exception) { default }
-    }
-
-    private fun getPrefFloat(key: String, default: Float): Float {
-        return try {
-            prefs?.reload()
-            prefs?.getFloat(key, default) ?: default
         } catch (_: Exception) { default }
     }
 
