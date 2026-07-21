@@ -1,6 +1,5 @@
 package com.example.hypernotice
 
-import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
@@ -26,128 +25,143 @@ class MainHook : IXposedHookLoadPackage {
         prefs = XSharedPreferences(PREFS_NAME)
         prefs?.makeWorldReadable()
 
-        hookFocusedNotifPromptView(lpparam.classLoader)
-        hookFocusedNotifPromptController(lpparam.classLoader)
+        // ========== 参照 HyperIsland 的 Hook 方式 ==========
+
+        // 1. Hook DynamicIslandBaseContentView.setCutoutY(float) — 位置控制
+        hookDynamicIslandContentView(lpparam.classLoader)
+
+        // 2. Hook FocusNotificationController
+        hookFocusNotificationController(lpparam.classLoader)
 
         XposedBridge.log("[HyperNotice] === All hooks registered ===")
     }
 
     // ============================================================
-    // Hook 1: FocusedNotifPromptView — 视图布局时修改
+    // Hook 核心：DynamicIslandBaseContentView.setCutoutY(float)
+    // HyperIsland 就是用这个来控制焦点通知 Y 轴位置的！
     // ============================================================
-    private fun hookFocusedNotifPromptView(cl: ClassLoader) {
+    private fun hookDynamicIslandContentView(cl: ClassLoader) {
         try {
-            val viewClz = XposedHelpers.findClass(
-                "com.android.systemui.statusbar.phone.FocusedNotifPromptView", cl)
-            XposedBridge.log("[HyperNotice] ✓ Found FocusedNotifPromptView")
+            val clz = XposedHelpers.findClass(
+                "miui.systemui.dynamicisland.window.content.DynamicIslandBaseContentView", cl)
+            XposedBridge.log("[HyperNotice] ✓ Found DynamicIslandBaseContentView")
 
-            // Hook onLayout — 每次布局后调整
-            XposedHelpers.findAndHookMethod(
-                viewClz, "onLayout", Boolean::class.java,
-                Int::class.java, Int::class.java, Int::class.java, Int::class.java,
+            // Hook setCutoutY(float) — 修改 Y 轴位置
+            XposedHelpers.findAndHookMethod(clz, "setCutoutY", Float::class.java,
                 object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        adjustView(param.thisObject as View)
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        try {
+                            val yOffset = getPrefInt("y_offset", 45)
+                            val moveUp = getPrefBoolean("move_up_punchhole", false)
+
+                            val view = param.thisObject as? View ?: return
+                            val density = view.context.resources.displayMetrics.density
+                            val offset = if (moveUp) -yOffset * density else -(yOffset * density).toFloat()
+                            param.args[0] = offset
+
+                            XposedBridge.log("[HyperNotice] setCutoutY -> $offset (${yOffset}dp)")
+                        } catch (e: Exception) {
+                            XposedBridge.log("[HyperNotice] setCutoutY hook err: ${e.message}")
+                        }
                     }
-                })
 
-            // Hook onAttachedToWindow
-            XposedHelpers.findAndHookMethod(
-                viewClz, "onAttachedToWindow",
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        adjustView(param.thisObject as View)
-                    }
-                })
-
-            XposedBridge.log("[HyperNotice] ✓ Hooked FocusedNotifPromptView.onLayout")
-        } catch (e: Exception) {
-            XposedBridge.log("[HyperNotice] ✗ FocusedNotifPromptView: ${e.message}")
-        }
-    }
-
-    // ============================================================
-    // Hook 2: FocusedNotifPromptController — 更新时调整
-    // ============================================================
-    private fun hookFocusedNotifPromptController(cl: ClassLoader) {
-        try {
-            val ctrlClz = XposedHelpers.findClass(
-                "com.android.systemui.statusbar.phone.FocusedNotifPromptController", cl)
-            XposedBridge.log("[HyperNotice] ✓ Found FocusedNotifPromptController")
-
-            // Hook update(int)
-            XposedHelpers.findAndHookMethod(
-                ctrlClz, "update", Int::class.java,
-                object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         try {
-                            val view = XposedHelpers.getObjectField(
-                                param.thisObject, "mView") as? View
-                            view?.let { adjustView(it) }
+                            applyViewModifications(param.thisObject as? View)
                         } catch (_: Exception) {}
                     }
                 })
 
-            // Hook setView
-            XposedHelpers.findAndHookMethod(
-                ctrlClz, "setView",
-                XposedHelpers.findClass(
-                    "com.android.systemui.statusbar.phone.FocusedNotifPromptView", cl),
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        try {
-                            val view = param.args[0] as? View
-                            view?.let { adjustView(it) }
-                        } catch (_: Exception) {}
-                    }
-                })
+            XposedBridge.log("[HyperNotice] ✓ Hooked DynamicIslandBaseContentView.setCutoutY")
 
-            XposedBridge.log("[HyperNotice] ✓ Hooked FocusedNotifPromptController")
+            // 也 hook onLayout 来做额外修改
+            try {
+                XposedHelpers.findAndHookMethod(clz, "onLayout", Boolean::class.java,
+                    Int::class.java, Int::class.java, Int::class.java, Int::class.java,
+                    object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            applyViewModifications(param.thisObject as? View)
+                        }
+                    })
+                XposedBridge.log("[HyperNotice] ✓ Hooked onLayout")
+            } catch (_: Exception) {}
+
         } catch (e: Exception) {
-            XposedBridge.log("[HyperNotice] ✗ FocusedNotifPromptController: ${e.message}")
+            XposedBridge.log("[HyperNotice] ✗ DynamicIslandBaseContentView: ${e.message}")
         }
     }
 
     // ============================================================
-    // 核心：调整视图
+    // Hook FocusNotificationController
     // ============================================================
-    private fun adjustView(view: View) {
+    private fun hookFocusNotificationController(cl: ClassLoader) {
+        try {
+            val clz = XposedHelpers.findClass(
+                "miui.systemui.notification.focus.FocusNotificationController", cl)
+            XposedBridge.log("[HyperNotice] ✓ Found FocusNotificationController")
+
+            // Hook updatePosition — 控制位置
+            try {
+                XposedHelpers.findAndHookMethod(clz, "updatePosition",
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam) {
+                            val yOffset = getPrefInt("y_offset", 45)
+                            try {
+                                XposedHelpers.setObjectField(param.thisObject, "mOffsetY", yOffset)
+                                XposedBridge.log("[HyperNotice] FocusController: set mOffsetY=$yOffset")
+                            } catch (_: Exception) {}
+                        }
+                    })
+                XposedBridge.log("[HyperNotice] ✓ Hooked FocusNotificationController.updatePosition")
+            } catch (_: Exception) {}
+
+            XposedBridge.log("[HyperNotice] ✓ Hooked FocusNotificationController")
+        } catch (e: Exception) {
+            XposedBridge.log("[HyperNotice] ✗ FocusNotificationController: ${e.message}")
+        }
+    }
+
+    // ============================================================
+    // 应用外观修改到 View（背景、透明度、圆角、文字替换）
+    // ============================================================
+    private fun applyViewModifications(view: View?) {
+        if (view == null) return
+
         try {
             prefs?.reload()
         } catch (_: Exception) {}
 
-        val yOffset = getPrefInt("y_offset", 45)
-        val moveUp = getPrefBoolean("move_up_punchhole", false)
         val darkBg = getPrefBoolean("dark_bg", false)
         val opacity = getPrefInt("opacity", 95)
         val cornerRadius = getPrefInt("corner_radius", 16)
         val replaceText = getPrefBoolean("replace_text", false)
         val hideStatus = getPrefBoolean("hide_status_bar", false)
 
-        val ctx = view.context
-        val density = ctx.resources.displayMetrics.density
-
-        // 1. Y轴偏移 — 用 translationY，不影响布局流程
-        if (moveUp || yOffset != 45) {
-            val offsetPx = -(yOffset * density).toInt()
-            view.translationY = offsetPx.toFloat()
-            XposedBridge.log("[HyperNotice] translationY=$offsetPx (${yOffset}dp)")
-        }
-
-        // 2. 纯黑背景
+        // 纯黑背景
         if (darkBg) {
-            view.setBackgroundColor(Color.BLACK)
+            try {
+                view.setBackgroundColor(Color.BLACK)
+                // 也尝试找子 View 设黑背景
+                if (view is ViewGroup) {
+                    for (i in 0 until view.childCount) {
+                        view.getChildAt(i).setBackgroundColor(Color.BLACK)
+                    }
+                }
+            } catch (_: Exception) {}
         }
 
-        // 3. 透明度
+        // 透明度
         if (opacity < 100) {
-            view.alpha = opacity / 100f
+            try {
+                view.alpha = opacity / 100f
+            } catch (_: Exception) {}
         }
 
-        // 4. 圆角
+        // 圆角
         if (cornerRadius > 0) {
             try {
                 view.setClipToOutline(true)
+                val density = view.context.resources.displayMetrics.density
                 val bg = view.background
                 if (bg is GradientDrawable) {
                     bg.cornerRadius = cornerRadius * density
@@ -155,24 +169,10 @@ class MainHook : IXposedHookLoadPackage {
             } catch (_: Exception) {}
         }
 
-        // 5. 替换文字
+        // 替换文字
         if (replaceText) {
-            replaceTextRecursive(view)
-        }
-
-        // 6. 隐藏状态栏 — 找父容器中的状态栏
-        if (hideStatus) {
             try {
-                var parent = view.parent
-                while (parent is ViewGroup) {
-                    for (i in 0 until parent.childCount) {
-                        val child = parent.getChildAt(i)
-                        if (child.tag?.toString()?.contains("status", true) == true) {
-                            child.visibility = View.GONE
-                        }
-                    }
-                    parent = parent.parent
-                }
+                replaceTextRecursive(view)
             } catch (_: Exception) {}
         }
     }
