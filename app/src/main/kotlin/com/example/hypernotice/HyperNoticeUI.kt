@@ -31,8 +31,6 @@ val C_SwitchTrack = Color(0xFFE5E5EA)
 val C_SliderTrack = Color(0xFFC7C7CC)
 val C_SliderTrackActive = Color(0xFF3482FF)
 
-val noRippleInteraction = remember { MutableInteractionSource() }
-
 @Composable
 fun MiuiSearchBar() {
     Box(
@@ -81,12 +79,9 @@ fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedCh
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = C_White,
-                checkedTrackColor = C_Accent,
-                uncheckedThumbColor = C_White,
-                uncheckedTrackColor = C_SwitchTrack,
-                uncheckedBorderColor = Color.Transparent,
-                checkedBorderColor = Color.Transparent
+                checkedThumbColor = C_White, checkedTrackColor = C_Accent,
+                uncheckedThumbColor = C_White, uncheckedTrackColor = C_SwitchTrack,
+                uncheckedBorderColor = Color.Transparent, checkedBorderColor = Color.Transparent
             )
         )
     }
