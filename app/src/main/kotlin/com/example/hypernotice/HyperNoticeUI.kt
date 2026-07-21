@@ -1,10 +1,9 @@
-﻿package com.example.hypernotice
+package com.example.hypernotice
 
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -12,7 +11,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -31,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -41,6 +38,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.SharedPreferences
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlin.math.roundToInt
 
 val C_Bg = Color(0xFFF7F7F7)
@@ -50,10 +50,18 @@ val C_Sub = Color(0xFF8A8FA3)
 val C_White = Color(0xFFFFFFFF)
 val C_Track = Color(0xFFE5E5EA)
 
+const val PREFS_NAME = "com.example.hypernotice_preferences"
+
 private fun haptic(ctx: android.content.Context) {
     try {
-        (ctx as? Activity)?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE)
+        (ctx as? Activity)?.window?.decorView?.performHapticFeedback(
+            android.view.HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE
+        )
     } catch (_: Exception) { }
+}
+
+private fun getPrefs(ctx: android.content.Context): SharedPreferences {
+    return ctx.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
 }
 
 @Composable
@@ -199,19 +207,36 @@ fun MiuiArrowItemWithSummary(title: String, summary: String, onClick: () -> Unit
 @Composable
 fun SliderPage(onBack: () -> Unit) {
     val ctx = LocalContext.current
+    val prefs = getPrefs(ctx)
     var showRestartDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+
     if (showRestartDialog) {
-        AlertDialog.Builder(ctx)
-            .setTitle("\u91CD\u542F\u7CFB\u7EDF\u754C\u9762")
-            .setMessage("\u91CD\u542F SystemUI \u4F7F Hook \u751F\u6548\uFF1F")
-            .setPositiveButton("\u91CD\u542F") { _, _ ->
-                Toast.makeText(ctx, "\u6B63\u5728\u91CD\u542F\u7CFB\u7EDF\u754C\u9762\u2026", Toast.LENGTH_SHORT).show()
-                try { Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui")) } catch (_: Exception) { }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRestartDialog = false },
+            title = { Text("重启系统界面") },
+            text = { Text("重启 SystemUI 使 Hook 生效？更改位置和外观参数后需要重启才会应用。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestartDialog = false
+                    Toast.makeText(ctx, "正在重启系统界面…", Toast.LENGTH_SHORT).show()
+                    try {
+                        Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop com.android.systemui"))
+                    } catch (_: Exception) {
+                        try {
+                            Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui"))
+                        } catch (_: Exception) {
+                            Toast.makeText(ctx, "重启失败，请手动重启", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) { Text("重启") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestartDialog = false }) { Text("取消") }
             }
-            .setNegativeButton("\u53D6\u6D88", null)
-            .show()
+        )
     }
+
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -230,46 +255,46 @@ fun SliderPage(onBack: () -> Unit) {
                 Text("\u21BB", color = Color(0xFF8E8E93), fontSize = 24.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { showRestartDialog = true })
             }
-            Text("\u4F4D\u7F6E\u4E0E\u5916\u89C2", color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
+            Text("位置与外观", color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
                 modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
-            Text("\u4F4D\u7F6E\u8C03\u6574", color = C_Sub, fontSize = 13.sp,
+            Text("位置调整", color = C_Sub, fontSize = 13.sp,
                 modifier = Modifier.offset(x = 30.dp).padding(bottom = 2.dp))
             MiuiCard {
-                var y by remember { mutableFloatStateOf(45f) }
+                var y by remember { mutableFloatStateOf(prefs.getFloat("y_offset", 45f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Y \u8F74\u504F\u79FB", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("Y 轴偏移", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${y.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
-                    MiuiSlider(y, { y = it }, 0f..200f)
+                    MiuiSlider(y, { y = it; prefs.edit().putFloat("y_offset", it).apply() }, 0f..200f)
                 }
-                var d by remember { mutableFloatStateOf(300f) }
+                var d by remember { mutableFloatStateOf(prefs.getFloat("anim_duration", 300f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("\u52A8\u753B\u65F6\u957F", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("动画时长", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${d.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
-                    MiuiSlider(d, { d = it }, 0f..2000f)
+                    MiuiSlider(d, { d = it; prefs.edit().putFloat("anim_duration", it).apply() }, 0f..2000f)
                 }
-                var t by remember { mutableFloatStateOf(16f) }
+                var t by remember { mutableFloatStateOf(prefs.getFloat("corner_radius", 16f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("\u5706\u89D2\u5927\u5C0F", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("圆角大小", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${t.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
-                    MiuiSlider(t, { t = it }, 0f..50f)
+                    MiuiSlider(t, { t = it; prefs.edit().putFloat("corner_radius", it).apply() }, 0f..50f)
                 }
-                var o by remember { mutableFloatStateOf(95f) }
+                var o by remember { mutableFloatStateOf(prefs.getFloat("opacity", 95f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("\u900F\u660E\u5EA6", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("透明度", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${o.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
-                    MiuiSlider(o, { o = it }, 0f..100f)
+                    MiuiSlider(o, { o = it; prefs.edit().putFloat("opacity", it).apply() }, 0f..100f)
                 }
             }
             Spacer(Modifier.height(80.dp))
@@ -281,6 +306,7 @@ fun SliderPage(onBack: () -> Unit) {
 fun HyperNoticeApp() {
     var sh by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
+    val prefs = getPrefs(ctx)
     SideEffect {
         val act = ctx as? Activity
         act?.window?.statusBarColor = C_Bg.hashCode()
@@ -304,43 +330,48 @@ fun HyperNoticeApp() {
             ) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val bm = remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-                        LaunchedEffect(Unit) {
-                            bm.value = try {
-                                android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.qwq)
-                            } catch (_: Exception) { null }
-                        }
-                        bm.value?.let { b ->
-                            Image(b.asImageBitmap(), null,
-                                Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)),
-                                contentScale = ContentScale.Crop)
-                        }
+                        Text("✨", fontSize = 54.sp)
                         Spacer(Modifier.height(10.dp))
                         Text("HyperNotice", color = C_Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("\u529F\u80FD\u5F00\u5173", color = C_Sub, fontSize = 13.sp,
+                Text("功能开关", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    SwitchItem("\u5F00\u542F\u7126\u70B9\u901A\u77E5\u4E0A\u79FB", true) { }
-                    SwitchItem("\u7126\u70B9\u901A\u77E5\u7EAF\u9ED1\u80CC\u666F", false) { }
+                    // 按用户要求重新排序
+                    var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
+                    SwitchItem("将通知替换为通知通知", replaceText) {
+                        replaceText = it; prefs.edit().putBoolean("replace_text", it).apply()
+                    }
+                    var hideStatus by remember { mutableStateOf(prefs.getBoolean("hide_status_bar", false)) }
+                    SwitchItem("焦点通知时隐藏状态栏", hideStatus) {
+                        hideStatus = it; prefs.edit().putBoolean("hide_status_bar", it).apply()
+                    }
+                    var moveUp by remember { mutableStateOf(prefs.getBoolean("move_up_punchhole", false)) }
+                    SwitchItem("焦点通知上移融入前摄", moveUp) {
+                        moveUp = it; prefs.edit().putBoolean("move_up_punchhole", it).apply()
+                    }
+                    var darkBg by remember { mutableStateOf(prefs.getBoolean("dark_bg", false)) }
+                    SwitchItem("焦点通知背景改为纯黑", darkBg) {
+                        darkBg = it; prefs.edit().putBoolean("dark_bg", it).apply()
+                    }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("\u4F4D\u7F6E\u8C03\u6574", color = C_Sub, fontSize = 13.sp,
+                Text("位置调整", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    MiuiArrowItem("\u4F4D\u7F6E\u4E0E\u5916\u89C2") { sh = true }
+                    MiuiArrowItem("位置与外观") { sh = true }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("\u5173\u4E8E", color = C_Sub, fontSize = 13.sp,
+                Text("关于", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
                     MiuiArrowItemWithSummary("HyperNotice", "v1.0.0") {
                         Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show()
                     }
                     MiuiArrowItemWithSummary("GitHub", "q02144235/HyperNotice") {
-                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "\u65E0\u6CD5\u6253\u5F00\u6D4F\u89C8\u5668", Toast.LENGTH_SHORT).show() }
+                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "无法打开浏览器", Toast.LENGTH_SHORT).show() }
                     }
                 }
                 Spacer(Modifier.height(80.dp))
@@ -356,7 +387,3 @@ fun HyperNoticeApp() {
         }
     }
 }
-
-
-
-
