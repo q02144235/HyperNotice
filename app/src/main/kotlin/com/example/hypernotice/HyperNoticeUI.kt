@@ -1,10 +1,12 @@
 package com.example.hypernotice
 
-import android.view.HapticFeedbackConstants
 import android.widget.Toast
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -26,16 +28,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-val C_Bg = Color(0xFFF2F2F5)
+val C_Bg = Color(0xFFFFFFFF)
 val C_Accent = Color(0xFF3482FF)
 val C_Text = Color(0xCC000000)
 val C_Sub = Color(0x99000000)
@@ -60,22 +63,18 @@ fun MiuiSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
 
 @Composable
 fun MiuiSlider(v: Float, onV: (Float) -> Unit, vr: ClosedFloatingPointRange<Float> = 0f..1f) {
-    val view = LocalView.current
     val s = remember { MutableInteractionSource() }
     val p by s.collectIsPressedAsState()
     var d by remember { mutableStateOf(false) }
     var lw by remember { mutableIntStateOf(1) }; var lh by remember { mutableIntStateOf(28) }
-    var lastEdge by remember { mutableIntStateOf(-1) }
-
     val ts by animateFloatAsState(if (p || d) 1.127f else 1f, spring(0.6f, 987f))
     val av by animateFloatAsState(v.coerceIn(vr), if (d) spring(0.9f, 1755f) else spring(0.96f, 322f))
-
     Box(
         Modifier.fillMaxWidth().height(40.dp).wrapContentHeight(Alignment.CenterVertically).padding(vertical = 4.dp)
             .onSizeChanged { lw = it.width; lh = it.height }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { d = true; lastEdge = -1 },
+                    onDragStart = { d = true },
                     onDragEnd = { d = false }, onDragCancel = { d = false },
                     onDrag = { ch, _ ->
                         ch.consume()
@@ -84,17 +83,6 @@ fun MiuiSlider(v: Float, onV: (Float) -> Unit, vr: ClosedFloatingPointRange<Floa
                         val fr = ((ch.position.x - tr) / avl).coerceIn(0f, 1f)
                         val nv = (vr.start + fr * (vr.endInclusive - vr.start)).coerceIn(vr)
                         onV(nv)
-
-                        // 滑到最左或最右时振动
-                        val edge = when {
-                            fr <= 0.001f -> 0
-                            fr >= 0.999f -> 1
-                            else -> -1
-                        }
-                        if (edge >= 0 && edge != lastEdge) {
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            lastEdge = edge
-                        }
                     }
                 )
             }
@@ -161,7 +149,7 @@ fun SliderPage(onBack: () -> Unit) {
                 .clickable(remember { MutableInteractionSource() }, null) { onBack() }
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
-        ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp) }
+        ) { Text("←", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Light) }
         Spacer(Modifier.height(8.dp))
         Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
@@ -210,24 +198,58 @@ fun SliderPage(onBack: () -> Unit) {
 fun HyperNoticeApp() {
     var sh by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
-    if (sh) { SliderPage { sh = false }; return }
-    Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
-        Spacer(Modifier.height(16.dp))
-        Text("功能开关", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
-        MiuiCard {
-            SwitchItem("开启焦点通知上移", "将通知位置向上移动", true) { }
-            SwitchItem("开启纯黑背景", "使用纯黑作为通知背景", false) { }
-            SwitchItem("显示应用名称", "显示来源应用名称", true) { }
+
+    AnimatedContent(
+        targetState = sh,
+        transitionSpec = {
+            if (targetState) {
+                (slideInHorizontally { it } + fadeIn(tween(250))) togetherWith
+                        (slideOutHorizontally { -it } + fadeOut(tween(250)))
+            } else {
+                (slideInHorizontally { -it } + fadeIn(tween(250))) togetherWith
+                        (slideOutHorizontally { it } + fadeOut(tween(250)))
+            }
+        },
+        label = "page"
+    ) { target ->
+        if (target) {
+            SliderPage { sh = false }
+        } else {
+            Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
+                // 图标 + 名称
+                Box(
+                    Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_launcher),
+                            contentDescription = "HyperNotice",
+                            modifier = Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text("HyperNotice", color = C_Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("功能开关", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+                MiuiCard {
+                    SwitchItem("开启焦点通知上移", "将通知位置向上移动", true) { }
+                    SwitchItem("开启纯黑背景", "使用纯黑作为通知背景", false) { }
+                    SwitchItem("显示应用名称", "显示来源应用名称", true) { }
+                }
+                Spacer(Modifier.height(24.dp))
+                Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+                MiuiCard { MiuiArrowItem("位置与外观", "Y轴偏移 | 动画时长 | 圆角 | 透明度") { sh = true } }
+                Spacer(Modifier.height(24.dp))
+                Text("关于", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+                MiuiCard {
+                    MiuiArrowItem("HyperNotice", "v1.0.0") { Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show() }
+                    MiuiArrowItem("GitHub", "q02144235/HyperNotice") { Toast.makeText(ctx, "GitHub: q02144235/HyperNotice", Toast.LENGTH_SHORT).show() }
+                }
+                Spacer(Modifier.height(80.dp))
+            }
         }
-        Spacer(Modifier.height(24.dp))
-        Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
-        MiuiCard { MiuiArrowItem("位置与外观", "Y轴偏移 | 动画时长 | 圆角 | 透明度") { sh = true } }
-        Spacer(Modifier.height(24.dp))
-        Text("关于", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
-        MiuiCard {
-            MiuiArrowItem("HyperNotice", "v1.0.0") { Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show() }
-            MiuiArrowItem("GitHub", "q02144235/HyperNotice") { Toast.makeText(ctx, "GitHub: q02144235/HyperNotice", Toast.LENGTH_SHORT).show() }
-        }
-        Spacer(Modifier.height(80.dp))
     }
 }
