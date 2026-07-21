@@ -1,11 +1,10 @@
-﻿package com.example.hypernotice
+package com.example.hypernotice
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
+import android.content.Intent
+import android.net.Uri
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -13,10 +12,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -42,7 +40,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 val C_Bg = Color(0xFFF7F7F7)
@@ -54,11 +51,7 @@ val C_Track = Color(0xFFE5E5EA)
 
 private fun haptic(ctx: android.content.Context) {
     try {
-        val vib = if (Build.VERSION.SDK_INT >= 31)
-            (ctx.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
-        else
-            ctx.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? Vibrator
-        vib?.vibrate(VibrationEffect.createOneShot(10, 50))
+        (ctx as? Activity)?.window?.decorView?.performHapticFeedback(HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE)
     } catch (_: Exception) { }
 }
 
@@ -66,19 +59,23 @@ private fun haptic(ctx: android.content.Context) {
 fun MiuiSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
     val s = remember { MutableInteractionSource() }
     val p by s.collectIsPressedAsState()
-    val ts by animateFloatAsState(if (p) 1.127f else 1f, spring(0.6f, 987f))
-    val ctx = LocalContext.current
+    val ts by animateFloatAsState(if (p) 1.127f else 1f, tween(800), label = "")
+    val sx by animateFloatAsState(if (checked) 21f else 0f, tween(300), label = "")
     Box(
-        Modifier.size(49.dp, 28.dp).clip(CircleShape)
+        Modifier
+            .size(49.dp, 28.dp)
+            .clip(CircleShape)
             .drawBehind { drawRect(if (checked) C_Accent else C_Track) }
-            .clickable(remember { MutableInteractionSource() }, null) {
-                onCheckedChange?.invoke(!checked)
-                haptic(ctx)
-            },
-        if (checked) Alignment.CenterEnd else Alignment.CenterStart
+            .clickable(remember { MutableInteractionSource() }, null) { onCheckedChange?.invoke(!checked) }
     ) {
-        Box(Modifier.padding(4.dp).size(20.dp).graphicsLayer { scaleX = ts; scaleY = ts }
-            .drawBehind { drawCircle(C_White) })
+        Box(
+            Modifier
+                .padding(4.dp)
+                .size(20.dp)
+                .offset(x = sx.dp)
+                .graphicsLayer { scaleX = ts; scaleY = ts }
+                .drawBehind { drawCircle(C_White) }
+        )
     }
 }
 
@@ -89,34 +86,42 @@ fun MiuiSlider(v: Float, onV: (Float) -> Unit, vr: ClosedFloatingPointRange<Floa
     var d by remember { mutableStateOf(false) }
     var lw by remember { mutableIntStateOf(1) }
     var lh by remember { mutableIntStateOf(28) }
-    val ts by animateFloatAsState(if (p || d) 1.127f else 1f, spring(0.6f, 987f))
-    val av by animateFloatAsState(v.coerceIn(vr), if (d) spring(0.9f, 1755f) else spring(0.96f, 322f))
+    val ts by animateFloatAsState(if (p || d) 1.127f else 1f, spring(0.6f, 987f), label = "")
+    val av by animateFloatAsState(v.coerceIn(vr), if (d) spring(0.9f, 1755f) else spring(0.96f, 322f), label = "")
     val ctx = LocalContext.current
-    var lastFr by remember { mutableFloatStateOf(-1f) }
+    var hapticed by remember { mutableStateOf(false) }
     Box(
-        Modifier.fillMaxWidth().height(40.dp).wrapContentHeight(Alignment.CenterVertically).padding(vertical = 4.dp)
+        Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .wrapContentHeight(Alignment.CenterVertically)
+            .padding(vertical = 4.dp)
             .onSizeChanged { lw = it.width; lh = it.height }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { d = true },
+                    onDragStart = { d = true; hapticed = false },
                     onDragEnd = { d = false },
-                    onDragCancel = { d = false },
-                    onDrag = { ch, _ ->
-                        ch.consume()
+                    onDragCancel = { d = false; hapticed = false },
+                    onDrag = { change, _ ->
+                        change.consume()
                         val tr = lh.toFloat() / 2f
                         val avl = (lw - 2f * tr).coerceAtLeast(1f)
-                        val fr = ((ch.position.x - tr) / avl).coerceIn(0f, 1f)
-                        val nv = (vr.start + fr * (vr.endInclusive - vr.start)).coerceIn(vr)
-                        if (fr <= 0.01f || fr >= 0.99f)
-                            if (abs(fr - lastFr) > 0.005f) haptic(ctx)
-                        lastFr = fr
-                        onV(nv)
+                        val fr = ((change.position.x - tr) / avl).coerceIn(0f, 1f)
+                        if (fr <= 0.01f || fr >= 0.99f) {
+                            if (!hapticed) { haptic(ctx); hapticed = true }
+                        } else {
+                            hapticed = false
+                        }
+                        onV((vr.start + fr * (vr.endInclusive - vr.start)).coerceIn(vr))
                     }
                 )
             }
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            val h = size.height; val w = size.width; val r = h / 2f; val my = h / 2f
+            val h = size.height
+            val w = size.width
+            val r = h / 2f
+            val my = h / 2f
             val fr = ((av - vr.start) / (vr.endInclusive - vr.start)).coerceIn(0f, 1f)
             val mx = r + fr * (w - 2f * r)
             drawLine(C_Track, Offset(r, my), Offset(w - r, my), h, cap = StrokeCap.Round)
@@ -133,7 +138,9 @@ fun MiuiCard(c: @Composable ColumnScope.() -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-    ) { Column(content = c) }
+    ) {
+        Column(content = c)
+    }
 }
 
 @Composable
@@ -141,42 +148,50 @@ fun SwitchItem(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Un
     var lc by remember { mutableStateOf(checked) }
     val ctx = LocalContext.current
     Row(
-        Modifier.fillMaxWidth().clickable(remember { MutableInteractionSource() }, null) { lc = !lc; onCheckedChange(lc); haptic(ctx) }
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+        Modifier
+            .fillMaxWidth()
+            .clickable(remember { MutableInteractionSource() }, null) { lc = !lc; onCheckedChange(lc) }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        MiuiSwitch(lc) { lc = it; onCheckedChange(it) }
+        Text(title, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        MiuiSwitch(lc) {
+            lc = it
+            onCheckedChange(it)
+            haptic(ctx)
+        }
     }
 }
 
 @Composable
 fun MiuiArrowItem(title: String, onClick: () -> Unit) {
-    val ctx = LocalContext.current
     Row(
-        Modifier.fillMaxWidth().clickable(remember { MutableInteractionSource() }, null) { onClick(); haptic(ctx) }
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+        Modifier
+            .fillMaxWidth()
+            .clickable(remember { MutableInteractionSource() }, null) { onClick() }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        Text("鈥?, color = Color(0xFF8E8E93), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text("\u203A", color = Color(0xFF8E8E93), fontSize = 26.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 fun MiuiArrowItemWithSummary(title: String, summary: String, onClick: () -> Unit) {
-    val ctx = LocalContext.current
     Row(
-        Modifier.fillMaxWidth().clickable(remember { MutableInteractionSource() }, null) { onClick(); haptic(ctx) }
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+        Modifier
+            .fillMaxWidth()
+            .clickable(remember { MutableInteractionSource() }, null) { onClick() }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(3.dp))
-            Text(summary, color = C_Sub, fontSize = 13.sp)
+            Text(summary, color = C_Sub, fontSize = 12.sp)
         }
-        Text("鈥?, color = Color(0xFF8E8E93), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("\u203A", color = Color(0xFF8E8E93), fontSize = 26.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -184,85 +199,76 @@ fun MiuiArrowItemWithSummary(title: String, summary: String, onClick: () -> Unit
 fun SliderPage(onBack: () -> Unit) {
     val ctx = LocalContext.current
     var showRestartDialog by remember { mutableStateOf(false) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var dragging by remember { mutableStateOf(false) }
-    var pageWidth by remember { mutableIntStateOf(1) }
-
+    val scrollState = rememberScrollState()
     if (showRestartDialog) {
         AlertDialog.Builder(ctx)
-            .setTitle("閲嶅惎绯荤粺鐣岄潰")
-            .setMessage("閲嶅惎 SystemUI 浣?Hook 鐢熸晥锛?)
-            .setPositiveButton("閲嶅惎") { _, _ ->
-                Toast.makeText(ctx, "姝ｅ湪閲嶅惎绯荤粺鐣岄潰鈥?, Toast.LENGTH_SHORT).show()
-                try { Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui")) }
-                catch (_: Exception) { }
+            .setTitle("\u91CD\u542F\u7CFB\u7EDF\u754C\u9762")
+            .setMessage("\u91CD\u542F SystemUI \u4F7F Hook \u751F\u6548\uFF1F")
+            .setPositiveButton("\u91CD\u542F") { _, _ ->
+                Toast.makeText(ctx, "\u6B63\u5728\u91CD\u542F\u7CFB\u7EDF\u754C\u9762\u2026", Toast.LENGTH_SHORT).show()
+                try { Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui")) } catch (_: Exception) { }
             }
-            .setNegativeButton("鍙栨秷", null)
+            .setNegativeButton("\u53D6\u6D88", null)
             .show()
     }
-
-    Box(
-        Modifier.fillMaxSize()
-            .onSizeChanged { pageWidth = it.width }
-            .graphicsLayer { translationX = if (dragging) dragOffset else 0f }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragging = true },
-                    onHorizontalDrag = { change, delta ->
-                        change.consume()
-                        dragOffset = (dragOffset + delta).coerceAtLeast(0f)
-                    },
-                    onDragEnd = {
-                        dragging = false
-                        if (abs(dragOffset) > pageWidth * 0.25f) onBack()
-                        dragOffset = 0f
-                    },
-                    onDragCancel = { dragging = false; dragOffset = 0f }
-                )
-            }
-    ) {
-        Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("鈫?, color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(C_Bg)
+                .systemBarsPadding()
+                .verticalScroll(scrollState)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("\u2190", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Normal,
                     modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { onBack() })
                 Spacer(Modifier.weight(1f))
-                Text("鈫?, color = Color(0xFF8E8E93), fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                Text("\u21BB", color = Color(0xFF8E8E93), fontSize = 24.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { showRestartDialog = true })
             }
-            Spacer(Modifier.height(8.dp))
-            Text("浣嶇疆璋冩暣", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+            Text("\u4F4D\u7F6E\u4E0E\u5916\u89C2", color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
+                modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
+            Text("\u4F4D\u7F6E\u8C03\u6574", color = C_Sub, fontSize = 13.sp,
+                modifier = Modifier.offset(x = 30.dp).padding(bottom = 2.dp))
             MiuiCard {
                 var y by remember { mutableFloatStateOf(45f) }
-                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Y 杞村亸绉?, color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("${y.roundToInt()}", color = C_Sub, fontSize = 14.sp)
+                        Text("Y \u8F74\u504F\u79FB", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("${y.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
-                    Spacer(Modifier.height(10.dp)); MiuiSlider(y, { y = it }, 0f..200f)
+                    Spacer(Modifier.height(10.dp))
+                    MiuiSlider(y, { y = it }, 0f..200f)
                 }
                 var d by remember { mutableFloatStateOf(300f) }
-                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("鍔ㄧ敾鏃堕暱", color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("${d.roundToInt()}", color = C_Sub, fontSize = 14.sp)
+                        Text("\u52A8\u753B\u65F6\u957F", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("${d.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
-                    Spacer(Modifier.height(10.dp)); MiuiSlider(d, { d = it }, 0f..2000f)
+                    Spacer(Modifier.height(10.dp))
+                    MiuiSlider(d, { d = it }, 0f..2000f)
                 }
                 var t by remember { mutableFloatStateOf(16f) }
-                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("鍦嗚澶у皬", color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("${t.roundToInt()}", color = C_Sub, fontSize = 14.sp)
+                        Text("\u5706\u89D2\u5927\u5C0F", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("${t.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
-                    Spacer(Modifier.height(10.dp)); MiuiSlider(t, { t = it }, 0f..50f)
+                    Spacer(Modifier.height(10.dp))
+                    MiuiSlider(t, { t = it }, 0f..50f)
                 }
                 var o by remember { mutableFloatStateOf(95f) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("閫忔槑搴?, color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("${o.roundToInt()}", color = C_Sub, fontSize = 14.sp)
+                        Text("\u900F\u660E\u5EA6", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("${o.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
-                    Spacer(Modifier.height(10.dp)); MiuiSlider(o, { o = it }, 0f..100f)
+                    Spacer(Modifier.height(10.dp))
+                    MiuiSlider(o, { o = it }, 0f..100f)
                 }
             }
             Spacer(Modifier.height(80.dp))
@@ -276,45 +282,64 @@ fun HyperNoticeApp() {
     val ctx = LocalContext.current
     SideEffect {
         val act = ctx as? Activity
-        act?.window?.statusBarColor = Color(0xFFF7F7F7).hashCode()
-        act?.window?.decorView?.let { v -> v.systemUiVisibility = v.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR }
+        act?.window?.statusBarColor = C_Bg.hashCode()
+        act?.window?.decorView?.let { v ->
+            v.systemUiVisibility = v.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
     }
-    AnimatedContent(
-        targetState = sh,
-        transitionSpec = {
-            if (targetState) (slideInHorizontally { it } + fadeIn(tween(250))) togetherWith (slideOutHorizontally { -it } + fadeOut(tween(250)))
-            else (slideInHorizontally { -it } + fadeIn(tween(250))) togetherWith (slideOutHorizontally { it } + fadeOut(tween(250)))
-        },
-        label = "page"
-    ) { target ->
-        if (target) SliderPage { sh = false }
-        else {
-            Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
+
+    Box(Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = !sh,
+            enter = fadeIn(tween(300)) + slideInHorizontally(tween(300)) { -it },
+            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { -it }
+        ) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(C_Bg)
+                    .systemBarsPadding()
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(painterResource(R.drawable.ic_launcher), null, Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)), ContentScale.Crop)
-                        Spacer(Modifier.height(10.dp))
                         Text("HyperNotice", color = C_Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("鍔熻兘寮€鍏?, color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+                Text("\u529F\u80FD\u5F00\u5173", color = C_Sub, fontSize = 13.sp,
+                    modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    SwitchItem("寮€鍚劍鐐归€氱煡涓婄Щ", true) { }
-                    SwitchItem("寮€鍚函榛戣儗鏅?, false) { }
+                    SwitchItem("\u5F00\u542F\u7126\u70B9\u901A\u77E5\u4E0A\u79FB", true) { }
+                    SwitchItem("\u7126\u70B9\u901A\u77E5\u7EAF\u9ED1\u80CC\u666F", false) { }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("浣嶇疆璋冩暣", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
-                MiuiCard { MiuiArrowItem("浣嶇疆涓庡瑙?) { sh = true } }
-                Spacer(Modifier.height(24.dp))
-                Text("鍏充簬", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+                Text("\u4F4D\u7F6E\u8C03\u6574", color = C_Sub, fontSize = 13.sp,
+                    modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    MiuiArrowItemWithSummary("HyperNotice", "v1.0.0") { Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show() }
-                    MiuiArrowItemWithSummary("GitHub", "q02144235/HyperNotice") { Toast.makeText(ctx, "GitHub: q02144235/HyperNotice", Toast.LENGTH_SHORT).show() }
+                    MiuiArrowItem("\u4F4D\u7F6E\u4E0E\u5916\u89C2") { sh = true }
+                }
+                Spacer(Modifier.height(24.dp))
+                Text("\u5173\u4E8E", color = C_Sub, fontSize = 13.sp,
+                    modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
+                MiuiCard {
+                    MiuiArrowItemWithSummary("HyperNotice", "v1.0.0") {
+                        Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show()
+                    }
+                    MiuiArrowItemWithSummary("GitHub", "q02144235/HyperNotice") {
+                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "\u65E0\u6CD5\u6253\u5F00\u6D4F\u89C8\u5668", Toast.LENGTH_SHORT).show() }
+                    }
                 }
                 Spacer(Modifier.height(80.dp))
             }
         }
+
+        AnimatedVisibility(
+            visible = sh,
+            enter = slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)),
+            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it }
+        ) {
+            SliderPage { sh = false }
+        }
     }
 }
-
