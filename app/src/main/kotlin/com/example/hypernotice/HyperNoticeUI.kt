@@ -235,11 +235,12 @@ fun SliderPage(onBack: () -> Unit) {
         )
     }
 
+    // ===== 可预测试返回：offset 动画 + 手势 =====
     var swipeOffset by remember { mutableFloatStateOf(0f) }
     var swiping by remember { mutableStateOf(false) }
     val swipeAnim by animateFloatAsState(
         targetValue = if (swiping) swipeOffset else 0f,
-        animationSpec = if (swiping) snap() else tween(250),
+        animationSpec = if (swiping) snap() else tween(300),
         label = "swipe"
     )
 
@@ -250,33 +251,19 @@ fun SliderPage(onBack: () -> Unit) {
                 .offset(x = swipeAnim.dp)
                 .background(C_Bg)
                 .systemBarsPadding()
+                // 侧滑手势放在顶层/最外面，verticalScroll 在内部
                 .verticalScroll(scrollState)
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { swiping = true },
-                        onDragEnd = {
-                            if (swipeOffset > 150f) {
-                                onBack()
-                            }
-                            swiping = false
-                            swipeOffset = 0f
-                        },
-                        onDragCancel = {
-                            swiping = false
-                            swipeOffset = 0f
-                        },
-                        onHorizontalDrag = { _, drag ->
-                            swipeOffset = (swipeOffset + drag).coerceAtLeast(0f)
-                        }
-                    )
-                }
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("\u2190", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Normal,
-                    modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { onBack() })
+                    modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) {
+                        // 触发动画回收，再返回
+                        swiping = true
+                        swipeOffset = 999f
+                    })
                 Spacer(Modifier.weight(1f))
                 Text("\u21BB", color = Color(0xFF8E8E93), fontSize = 24.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { showRestartDialog = true })
@@ -325,6 +312,35 @@ fun SliderPage(onBack: () -> Unit) {
             }
             Spacer(Modifier.height(80.dp))
         }
+
+        // 侧滑手势层（独立于垂直滚动）
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { swiping = true },
+                        onDragEnd = {
+                            if (swipeOffset > 150f) {
+                                // 复位后调用 onBack
+                                swiping = false
+                                swipeOffset = 0f
+                                onBack()
+                            } else {
+                                swiping = false
+                                swipeOffset = 0f
+                            }
+                        },
+                        onDragCancel = {
+                            swiping = false
+                            swipeOffset = 0f
+                        },
+                        onHorizontalDrag = { _, drag ->
+                            swipeOffset = (swipeOffset + drag).coerceAtLeast(0f)
+                        }
+                    )
+                }
+        )
     }
 }
 
@@ -375,7 +391,6 @@ fun HyperNoticeApp() {
                 Text("功能开关", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    // 按用户要求重新排序
                     var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
                     SwitchItem("将通知替换为通知通知", replaceText) {
                         replaceText = it; prefs.edit().putBoolean("replace_text", it).apply()
