@@ -1,4 +1,4 @@
-﻿package com.example.hypernotice
+package com.example.hypernotice
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -31,13 +31,7 @@ val C_SwitchTrack = Color(0xFFE5E5EA)
 val C_SliderTrack = Color(0xFFC7C7CC)
 val C_SliderTrackActive = Color(0xFF3482FF)
 
-fun Modifier.noRippleClick(onClick: () -> Unit): Modifier = this.then(
-    clickable(
-        interactionSource = remember { MutableInteractionSource() },
-        indication = null,
-        onClick = onClick
-    )
-)
+val noRippleInteraction = remember { MutableInteractionSource() }
 
 @Composable
 fun MiuiSearchBar() {
@@ -70,7 +64,10 @@ fun MiuiCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).noRippleClick { onCheckedChange(!checked) },
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+        ) { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -98,7 +95,10 @@ fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedCh
 @Composable
 fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).noRippleClick(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+        ) { onClick() },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -141,7 +141,10 @@ fun MiuiSliderItem(label: String, suffix: String) {
 fun SliderPage(title: String, onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().background(C_Bg)) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(52.dp).background(C_Card).noRippleClick(onClick = onBack),
+            modifier = Modifier.fillMaxWidth().height(52.dp).background(C_Card).clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onBack() },
             contentAlignment = Alignment.CenterStart
         ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp, modifier = Modifier.padding(start = 16.dp)) }
 
