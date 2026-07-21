@@ -22,9 +22,10 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="焦点通知位置调节/纯黑背景" />
+            android:value="HyperOS通知类插件" />
         <meta-data
             android:name="xposedminversion"
             android:value="53" />
     </application>
 </manifest>
+
