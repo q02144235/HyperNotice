@@ -1,10 +1,6 @@
-﻿package com.example.hypernotice
+package com.example.hypernotice
 
-import de.robv.android.xposed.IXposedHookLoadPackage
-import de.robv.android.xposed.callbacks.XC_LoadPackage
-
-class MainHook : IXposedHookLoadPackage {
-    override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        if (lpparam.packageName != "com.android.systemui") return
-    }
+class MainHook {
+    // LSPosed entry point – hooks will be added after basic build succeeds
+    // xposed api dep will be added then
 }
