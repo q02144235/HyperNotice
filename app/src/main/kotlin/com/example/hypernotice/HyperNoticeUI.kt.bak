@@ -1,4 +1,4 @@
-package com.example.hypernotice
+﻿package com.example.hypernotice
 
 import android.app.Activity
 import android.app.AlertDialog
@@ -214,25 +214,25 @@ fun SliderPage(onBack: () -> Unit) {
     if (showRestartDialog) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRestartDialog = false },
-            title = { Text("重启系统界面") },
-            text = { Text("更改位置和外观参数后需要重启系统界面才会生效，确定要重启吗？") },
+            title = { Text("閲嶅惎绯荤粺鐣岄潰") },
+            text = { Text("閲嶅惎 SystemUI 浣?Hook 鐢熸晥锛熸洿鏀逛綅缃拰澶栬鍙傛暟鍚庨渶瑕侀噸鍚墠浼氬簲鐢ㄣ€?) },
             confirmButton = {
                 TextButton(onClick = {
                     showRestartDialog = false
-                    Toast.makeText(ctx, "正在重启系统界面…", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, "姝ｅ湪閲嶅惎绯荤粺鐣岄潰鈥?, Toast.LENGTH_SHORT).show()
                     try {
                         Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop com.android.systemui"))
                     } catch (_: Exception) {
                         try {
                             Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui"))
                         } catch (_: Exception) {
-                            Toast.makeText(ctx, "重启失败，请手动重启系统界面", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, "閲嶅惎澶辫触锛岃鎵嬪姩閲嶅惎", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }) { Text("重启") }
+                }) { Text("閲嶅惎") }
             },
             dismissButton = {
-                TextButton(onClick = { showRestartDialog = false }) { Text("取消") }
+                TextButton(onClick = { showRestartDialog = false }) { Text("鍙栨秷") }
             }
         )
     }
@@ -255,15 +255,15 @@ fun SliderPage(onBack: () -> Unit) {
                 Text("\u21BB", color = Color(0xFF8E8E93), fontSize = 24.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { showRestartDialog = true })
             }
-            Text("位置与外观", color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
+            Text("浣嶇疆涓庡瑙?, color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
                 modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
-            Text("位置调整", color = C_Sub, fontSize = 13.sp,
+            Text("浣嶇疆璋冩暣", color = C_Sub, fontSize = 13.sp,
                 modifier = Modifier.offset(x = 30.dp).padding(bottom = 2.dp))
             MiuiCard {
                 var y by remember { mutableFloatStateOf(prefs.getFloat("y_offset", 45f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Y 轴偏移", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("Y 杞村亸绉?, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${y.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -272,7 +272,7 @@ fun SliderPage(onBack: () -> Unit) {
                 var d by remember { mutableFloatStateOf(prefs.getFloat("anim_duration", 300f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("动画时长", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("鍔ㄧ敾鏃堕暱", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${d.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -281,7 +281,7 @@ fun SliderPage(onBack: () -> Unit) {
                 var t by remember { mutableFloatStateOf(prefs.getFloat("corner_radius", 16f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("圆角大小", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("鍦嗚澶у皬", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${t.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -290,7 +290,7 @@ fun SliderPage(onBack: () -> Unit) {
                 var o by remember { mutableFloatStateOf(prefs.getFloat("opacity", 95f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("透明度", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("閫忔槑搴?, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${o.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -330,57 +330,47 @@ fun HyperNoticeApp() {
             ) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val bmp = remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-                        LaunchedEffect(Unit) {
-                            bmp.value = try {
-                                android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.qwq)
-                            } catch (_: Exception) { null }
-                        }
-                        bmp.value?.let { b ->
-                            Image(b.asImageBitmap(), null,
-                                Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)),
-                                contentScale = ContentScale.Crop)
-                        }
+                        Text("鉁?, fontSize = 54.sp)
                         Spacer(Modifier.height(10.dp))
                         Text("HyperNotice", color = C_Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("功能开关", color = C_Sub, fontSize = 13.sp,
+                Text("鍔熻兘寮€鍏?, color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
-                    SwitchItem("将通知替换为通知通知", replaceText) {
+                    // 鎸夌敤鎴疯姹傞噸鏂版帓搴?                    var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
+                    SwitchItem("灏嗛€氱煡鏇挎崲涓洪€氱煡閫氱煡", replaceText) {
                         replaceText = it; prefs.edit().putBoolean("replace_text", it).apply()
                     }
                     var hideStatus by remember { mutableStateOf(prefs.getBoolean("hide_status_bar", false)) }
-                    SwitchItem("焦点通知时隐藏状态栏", hideStatus) {
+                    SwitchItem("鐒︾偣閫氱煡鏃堕殣钘忕姸鎬佹爮", hideStatus) {
                         hideStatus = it; prefs.edit().putBoolean("hide_status_bar", it).apply()
                     }
                     var moveUp by remember { mutableStateOf(prefs.getBoolean("move_up_punchhole", false)) }
-                    SwitchItem("焦点通知上移融入前摄", moveUp) {
+                    SwitchItem("鐒︾偣閫氱煡涓婄Щ铻嶅叆鍓嶆憚", moveUp) {
                         moveUp = it; prefs.edit().putBoolean("move_up_punchhole", it).apply()
                     }
                     var darkBg by remember { mutableStateOf(prefs.getBoolean("dark_bg", false)) }
-                    SwitchItem("焦点通知背景改为纯黑", darkBg) {
+                    SwitchItem("鐒︾偣閫氱煡鑳屾櫙鏀逛负绾粦", darkBg) {
                         darkBg = it; prefs.edit().putBoolean("dark_bg", it).apply()
                     }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("位置调整", color = C_Sub, fontSize = 13.sp,
+                Text("浣嶇疆璋冩暣", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    MiuiArrowItem("位置与外观") { sh = true }
+                    MiuiArrowItem("浣嶇疆涓庡瑙?) { sh = true }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("关于", color = C_Sub, fontSize = 13.sp,
+                Text("鍏充簬", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
                     MiuiArrowItemWithSummary("HyperNotice", "v1.0.0") {
                         Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show()
                     }
                     MiuiArrowItemWithSummary("GitHub", "q02144235/HyperNotice") {
-                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "无法打开浏览器", Toast.LENGTH_SHORT).show() }
+                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "鏃犳硶鎵撳紑娴忚鍣?, Toast.LENGTH_SHORT).show() }
                     }
                 }
                 Spacer(Modifier.height(80.dp))
