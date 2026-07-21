@@ -18,6 +18,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -215,7 +216,7 @@ fun SliderPage(onBack: () -> Unit) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRestartDialog = false },
             title = { Text("重启系统界面") },
-            text = { Text("重启 SystemUI 使 Hook 生效？更改位置和外观参数后需要重启才会应用。") },
+            text = { Text("更改位置和外观参数后需要重启系统界面才会生效，确定要重启吗？") },
             confirmButton = {
                 TextButton(onClick = {
                     showRestartDialog = false
@@ -226,7 +227,7 @@ fun SliderPage(onBack: () -> Unit) {
                         try {
                             Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui"))
                         } catch (_: Exception) {
-                            Toast.makeText(ctx, "重启失败，请手动重启", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, "重启失败，请手动重启系统界面", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }) { Text("重启") }
@@ -236,6 +237,8 @@ fun SliderPage(onBack: () -> Unit) {
             }
         )
     }
+
+    BackHandler(enabled = true) { onBack() }
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -391,7 +394,7 @@ fun HyperNoticeApp() {
         AnimatedVisibility(
             visible = sh,
             enter = slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)),
-            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it }
+            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 4 }
         ) {
             SliderPage { sh = false }
         }
