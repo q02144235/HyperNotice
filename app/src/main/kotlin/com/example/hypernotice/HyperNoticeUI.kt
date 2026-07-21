@@ -1,7 +1,6 @@
 package com.example.hypernotice
 
 import android.view.HapticFeedbackConstants
-import android.view.View
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -43,7 +42,6 @@ val C_Sub = Color(0x99000000)
 val C_White = Color(0xFFFFFFFF)
 val C_Track = Color(0xFFE5E5EA)
 
-// Switch
 @Composable
 fun MiuiSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -66,7 +64,6 @@ fun MiuiSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
     }
 }
 
-// Slider — 轨道起止对齐滑块边缘
 @Composable
 fun MiuiSlider(
     value: Float,
@@ -90,7 +87,7 @@ fun MiuiSlider(
         animationSpec = if (isDragging) spring(0.9f, 1755f) else spring(0.96f, 322f)
     )
 
-    BoxWithConstraints(
+    Box(
         modifier = Modifier.fillMaxWidth().height(40.dp).wrapContentHeight(Alignment.CenterVertically)
             .padding(vertical = 4.dp)
             .onSizeChanged { layoutWidth = it.width; layoutHeight = it.height }
@@ -111,29 +108,22 @@ fun MiuiSlider(
                         val newVal = valueRange.start + frac * (valueRange.endInclusive - valueRange.start)
                         val clamped = newVal.coerceIn(valueRange)
                         onValueChange(clamped)
-                        // 每变化一次振动（过滤噪声）
                         if (abs(clamped - lastHapticVal) > (valueRange.endInclusive - valueRange.start) * 0.02f) {
-                            view.performHapticFeedback(HapticFeedbackConstants.TEXT_HELP)
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             lastHapticVal = clamped
                         }
                     }
                 )
             }
     ) {
-        val totalWidth = layoutWidth.toFloat()
-        val tr = layoutHeight.toFloat() / 2f
-        val avail = (totalWidth - 2f * tr).coerceAtLeast(1f)
-        val frac = ((animatedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
-        val midX = tr + frac * avail
-
         Canvas(modifier = Modifier.fillMaxSize()) {
             val h = size.height; val w = size.width
-            val r = h / 2f
-            val midY = h / 2f
-
-            // 灰色轨道：从滑块左边缘到右边缘
+            val r = h / 2f; val midY = h / 2f
+            val frac = ((animatedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+            val midX = r + frac * (w - 2f * r)
+            // 灰色轨道：只画滑块半径到滑块半径之间
             drawLine(C_Track, Offset(r, midY), Offset(w - r, midY), h, cap = StrokeCap.Round)
-            // 蓝色激活轨道：从最左到滑块当前位置
+            // 蓝色激活：从最左到当前位置
             drawLine(C_Accent, Offset(r, midY), Offset(midX, midY), h, cap = StrokeCap.Round)
             // 白色滑块
             drawCircle(C_White, r * 0.72f * thumbScale, Offset(midX, midY))
