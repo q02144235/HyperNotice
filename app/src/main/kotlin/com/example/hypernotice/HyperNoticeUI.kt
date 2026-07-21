@@ -12,6 +12,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -30,9 +31,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -301,7 +304,17 @@ fun HyperNoticeApp() {
             ) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("✨", fontSize = 54.sp)
+                        val bm = remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+                        LaunchedEffect(Unit) {
+                            bm.value = try {
+                                android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.qwq)
+                            } catch (_: Exception) { null }
+                        }
+                        bm.value?.let { b ->
+                            Image(b.asImageBitmap(), null,
+                                Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)),
+                                contentScale = ContentScale.Crop)
+                        }
                         Spacer(Modifier.height(10.dp))
                         Text("HyperNotice", color = C_Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     }
@@ -343,5 +356,7 @@ fun HyperNoticeApp() {
         }
     }
 }
+
+
 
 
