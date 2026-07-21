@@ -26,6 +26,9 @@
         <meta-data
             android:name="xposedminversion"
             android:value="53" />
+        <meta-data
+            android:name="xposedclass"
+            android:value="com.example.hypernotice.MainHook" />
     </application>
 </manifest>
 
