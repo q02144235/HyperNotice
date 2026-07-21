@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-val C_Bg = Color(0xFFFFFFFF)
+val C_Bg = Color(0xFFF2F2F5)
 val C_Accent = Color(0xFF3482FF)
 val C_Text = Color(0xCC000000)
 val C_Sub = Color(0x99000000)
@@ -65,7 +65,7 @@ fun MiuiSlider(v: Float, onV: (Float) -> Unit, vr: ClosedFloatingPointRange<Floa
     val p by s.collectIsPressedAsState()
     var d by remember { mutableStateOf(false) }
     var lw by remember { mutableIntStateOf(1) }; var lh by remember { mutableIntStateOf(28) }
-    var lhx by remember { mutableFloatStateOf(-999f) }
+    var lastEdge by remember { mutableIntStateOf(-1) }
 
     val ts by animateFloatAsState(if (p || d) 1.127f else 1f, spring(0.6f, 987f))
     val av by animateFloatAsState(v.coerceIn(vr), if (d) spring(0.9f, 1755f) else spring(0.96f, 322f))
@@ -75,7 +75,7 @@ fun MiuiSlider(v: Float, onV: (Float) -> Unit, vr: ClosedFloatingPointRange<Floa
             .onSizeChanged { lw = it.width; lh = it.height }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { d = true; view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); lhx = -999f },
+                    onDragStart = { d = true; lastEdge = -1 },
                     onDragEnd = { d = false }, onDragCancel = { d = false },
                     onDrag = { ch, _ ->
                         ch.consume()
@@ -84,8 +84,16 @@ fun MiuiSlider(v: Float, onV: (Float) -> Unit, vr: ClosedFloatingPointRange<Floa
                         val fr = ((ch.position.x - tr) / avl).coerceIn(0f, 1f)
                         val nv = (vr.start + fr * (vr.endInclusive - vr.start)).coerceIn(vr)
                         onV(nv)
-                        if (abs(nv - lhx) > (vr.endInclusive - vr.start) * 0.02f) {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); lhx = nv
+
+                        // 滑到最左或最右时振动
+                        val edge = when {
+                            fr <= 0.001f -> 0
+                            fr >= 0.999f -> 1
+                            else -> -1
+                        }
+                        if (edge >= 0 && edge != lastEdge) {
+                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            lastEdge = edge
                         }
                     }
                 )
@@ -113,15 +121,11 @@ fun MiuiCard(c: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun HapticSwitchItem(title: String, summary: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    val view = LocalView.current
+fun SwitchItem(title: String, summary: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     var lc by remember { mutableStateOf(checked) }
     Row(
         Modifier.fillMaxWidth()
-            .clickable(remember { MutableInteractionSource() }, null) {
-                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                lc = !lc; onCheckedChange(lc)
-            }
+            .clickable(remember { MutableInteractionSource() }, null) { lc = !lc; onCheckedChange(lc) }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -129,22 +133,15 @@ fun HapticSwitchItem(title: String, summary: String, checked: Boolean, onChecked
             Text(title, color = C_Text, fontSize = 16.sp)
             if (summary.isNotEmpty()) { Spacer(Modifier.height(2.dp)); Text(summary, color = C_Sub, fontSize = 12.sp) }
         }
-        MiuiSwitch(lc) {
-            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-            lc = it; onCheckedChange(it)
-        }
+        MiuiSwitch(lc) { lc = it; onCheckedChange(it) }
     }
 }
 
 @Composable
 fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
-    val view = LocalView.current
     Row(
         Modifier.fillMaxWidth()
-            .clickable(remember { MutableInteractionSource() }, null) {
-                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                onClick()
-            }
+            .clickable(remember { MutableInteractionSource() }, null) { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -158,13 +155,10 @@ fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
 
 @Composable
 fun SliderPage(onBack: () -> Unit) {
-    val view = LocalView.current
     Column(Modifier.fillMaxSize().background(C_Bg).systemBarsPadding().verticalScroll(rememberScrollState())) {
         Row(
             Modifier.fillMaxWidth()
-                .clickable(remember { MutableInteractionSource() }, null) {
-                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); onBack()
-                }
+                .clickable(remember { MutableInteractionSource() }, null) { onBack() }
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp) }
@@ -173,7 +167,7 @@ fun SliderPage(onBack: () -> Unit) {
         MiuiCard {
             var y by remember { mutableFloatStateOf(45f) }
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                     Text("Y 轴偏移", color = C_Text, fontSize = 15.sp)
                     Text("${y.roundToInt()}dp", color = C_Sub, fontSize = 13.sp)
                 }
@@ -182,7 +176,7 @@ fun SliderPage(onBack: () -> Unit) {
             }
             var d by remember { mutableFloatStateOf(300f) }
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                     Text("动画时长", color = C_Text, fontSize = 15.sp)
                     Text("${d.roundToInt()}ms", color = C_Sub, fontSize = 13.sp)
                 }
@@ -191,7 +185,7 @@ fun SliderPage(onBack: () -> Unit) {
             }
             var r by remember { mutableFloatStateOf(16f) }
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                     Text("圆角大小", color = C_Text, fontSize = 15.sp)
                     Text("${r.roundToInt()}dp", color = C_Sub, fontSize = 13.sp)
                 }
@@ -200,7 +194,7 @@ fun SliderPage(onBack: () -> Unit) {
             }
             var a by remember { mutableFloatStateOf(95f) }
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                     Text("透明度", color = C_Text, fontSize = 15.sp)
                     Text("${a.roundToInt()}%", color = C_Sub, fontSize = 13.sp)
                 }
@@ -221,9 +215,9 @@ fun HyperNoticeApp() {
         Spacer(Modifier.height(16.dp))
         Text("功能开关", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
         MiuiCard {
-            HapticSwitchItem("开启焦点通知上移", "将通知位置向上移动", true) { }
-            HapticSwitchItem("开启纯黑背景", "使用纯黑作为通知背景", false) { }
-            HapticSwitchItem("显示应用名称", "显示来源应用名称", true) { }
+            SwitchItem("开启焦点通知上移", "将通知位置向上移动", true) { }
+            SwitchItem("开启纯黑背景", "使用纯黑作为通知背景", false) { }
+            SwitchItem("显示应用名称", "显示来源应用名称", true) { }
         }
         Spacer(Modifier.height(24.dp))
         Text("位置调整", color = C_Sub, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
