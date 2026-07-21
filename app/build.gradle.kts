@@ -31,6 +31,9 @@ android {
     buildFeatures {
         compose = true
     }
+    aaptOptions {
+        noCompress("xposed_init", "module.prop", "scope.list")
+    }
 }
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
