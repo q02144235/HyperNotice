@@ -3,6 +3,7 @@
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val C_Bg = Color(0xFFF7F7F7)
+val C_Bg = Color(0xFFFFFFFF)
 val C_Card = Color(0xFFFFFFFF)
 val C_Accent = Color(0xFF3482FF)
 val C_Text = Color(0xCC000000)
@@ -27,6 +28,16 @@ val C_SearchBg = Color(0xFFF2F2F2)
 val C_NavOff = Color(0xFF8E8E93)
 val C_White = Color(0xFFFFFFFF)
 val C_SwitchTrack = Color(0xFFE5E5EA)
+val C_SliderTrack = Color(0xFFC7C7CC)
+val C_SliderTrackActive = Color(0xFF3482FF)
+
+fun Modifier.noRippleClick(onClick: () -> Unit): Modifier = this.then(
+    clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null,
+        onClick = onClick
+    )
+)
 
 @Composable
 fun MiuiSearchBar() {
@@ -47,7 +58,7 @@ fun MiuiSectionTitle(title: String) {
 @Composable
 fun MiuiCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = C_Card),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
@@ -59,19 +70,26 @@ fun MiuiCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).clickable { onCheckedChange(!checked) },
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).noRippleClick { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = C_Text, fontSize = 16.sp)
-            Text(summary, color = C_Sub, fontSize = 12.sp)
+            if (summary.isNotEmpty()) {
+                Spacer(Modifier.height(2.dp))
+                Text(summary, color = C_Sub, fontSize = 12.sp)
+            }
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = C_White, checkedTrackColor = C_Accent,
-                uncheckedThumbColor = C_White, uncheckedTrackColor = C_SwitchTrack
+                checkedThumbColor = C_White,
+                checkedTrackColor = C_Accent,
+                uncheckedThumbColor = C_White,
+                uncheckedTrackColor = C_SwitchTrack,
+                uncheckedBorderColor = Color.Transparent,
+                checkedBorderColor = Color.Transparent
             )
         )
     }
@@ -80,36 +98,64 @@ fun MiuiSwitchItem(title: String, summary: String, checked: Boolean, onCheckedCh
 @Composable
 fun MiuiArrowItem(title: String, summary: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp).noRippleClick(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = C_Text, fontSize = 16.sp)
-            Text(summary, color = C_Sub, fontSize = 12.sp)
+            if (summary.isNotEmpty()) {
+                Spacer(Modifier.height(2.dp))
+                Text(summary, color = C_Sub, fontSize = 12.sp)
+            }
         }
         Text("›", color = C_NavOff, fontSize = 24.sp, fontWeight = FontWeight.Light)
     }
 }
 
 @Composable
-fun MiuiSliderPage(title: String, value: Int, suffix: String, onBack: () -> Unit) {
-    var sliderValue by remember { mutableFloatStateOf(value.toFloat()) }
+fun MiuiSliderItem(label: String, suffix: String) {
+    var sliderValue by remember { mutableFloatStateOf(50f) }
+    Row(
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = C_Text, fontSize = 16.sp, modifier = Modifier.width(72.dp))
+        Slider(
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            valueRange = 0f..200f,
+            modifier = Modifier.weight(1f).height(40.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = C_Accent,
+                activeTrackColor = C_SliderTrackActive,
+                inactiveTrackColor = C_SliderTrack,
+                inactiveTickColor = Color.Transparent,
+                activeTickColor = Color.Transparent
+            )
+        )
+        Text("${sliderValue.toInt()}$suffix", color = C_Sub, fontSize = 14.sp, modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
+    }
+}
+
+@Composable
+fun SliderPage(title: String, onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().background(C_Bg)) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(52.dp).background(C_Card).clickable(onClick = onBack),
+            modifier = Modifier.fillMaxWidth().height(52.dp).background(C_Card).noRippleClick(onClick = onBack),
             contentAlignment = Alignment.CenterStart
         ) { Text("‹  返回", color = C_Accent, fontSize = 17.sp, modifier = Modifier.padding(start = 16.dp)) }
-        Spacer(Modifier.height(24.dp))
-        Text(title, color = C_Text, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(Modifier.height(32.dp))
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Slider(
-                value = sliderValue, onValueChange = { sliderValue = it },
-                valueRange = 0f..100f,
-                colors = SliderDefaults.colors(thumbColor = C_Accent, activeTrackColor = C_Accent, inactiveTrackColor = C_SwitchTrack),
-                modifier = Modifier.weight(1f).height(40.dp)
-            )
-            Text("${sliderValue.toInt()}$suffix", color = C_Sub, fontSize = 14.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
+
+        Spacer(Modifier.height(12.dp))
+        MiuiSearchBar()
+        Spacer(Modifier.height(12.dp))
+        MiuiSectionTitle(title)
+        MiuiCard {
+            MiuiSliderItem("Y 轴偏移", "dp")
+            MiuiSliderItem("动画时长", "ms")
+            MiuiSliderItem("圆角大小", "dp")
+            MiuiSliderItem("透明度", "%")
+            MiuiSliderItem("宽度", "%")
+            MiuiSliderItem("内边距", "dp")
         }
         Spacer(Modifier.weight(1f))
         Button(
@@ -127,19 +173,12 @@ fun HyperNoticeApp() {
     var currentPage by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scroll = rememberScrollState()
+
     if (currentPage.isNotEmpty()) {
-        val info = when (currentPage) {
-            "y" -> Triple("Y 轴偏移", 45, "dp")
-            "duration" -> Triple("动画时长", 300, "ms")
-            "round" -> Triple("圆角大小", 16, "dp")
-            "alpha" -> Triple("透明度", 95, "%")
-            "width" -> Triple("宽度", 100, "%")
-            "padding" -> Triple("内边距", 12, "dp")
-            else -> Triple("", 0, "")
-        }
-        MiuiSliderPage(info.first, info.second, info.third) { currentPage = "" }
+        SliderPage(currentPage) { currentPage = "" }
         return
     }
+
     Column(modifier = Modifier.fillMaxSize().background(C_Bg).verticalScroll(scroll)) {
         Spacer(Modifier.height(12.dp))
         MiuiSearchBar()
@@ -152,15 +191,7 @@ fun HyperNoticeApp() {
         }
         MiuiSectionTitle("位置调整")
         MiuiCard {
-            MiuiArrowItem("Y 轴偏移", "当前: 45dp") { currentPage = "y" }
-            MiuiArrowItem("动画时长", "当前: 300ms") { currentPage = "duration" }
-            MiuiArrowItem("圆角大小", "当前: 16dp") { currentPage = "round" }
-            MiuiArrowItem("透明度", "当前: 95%") { currentPage = "alpha" }
-        }
-        MiuiSectionTitle("大小调整")
-        MiuiCard {
-            MiuiArrowItem("宽度调整", "当前: 100%") { currentPage = "width" }
-            MiuiArrowItem("内边距", "当前: 12dp") { currentPage = "padding" }
+            MiuiArrowItem("位置与外观", "Y轴偏移 | 圆角 | 透明度") { currentPage = "位置调整" }
         }
         MiuiSectionTitle("关于")
         MiuiCard {
