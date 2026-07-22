@@ -8,6 +8,6 @@ class HyperNoticeModule : XposedModule() {
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
         if (param.packageName != "com.android.systemui") return
-        log(Log.INFO, "HyperNotice", "=== SystemUI loaded ===")
+        Log.i("HyperNotice", "=== SystemUI loaded ===")
     }
 }
