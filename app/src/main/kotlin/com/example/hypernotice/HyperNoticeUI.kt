@@ -306,7 +306,7 @@ fun SliderPage(onBack: () -> Unit) {
 }
 
 @Composable
-fun HyperNoticeApp() {
+fun HyperNoticeApp(onDiagnose: () -> String = { "" }) {
     var sh by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     val prefs = getPrefs(ctx)
@@ -385,6 +385,14 @@ fun HyperNoticeApp() {
                     }
                     MiuiArrowItemWithSummary("GitHub", "q02144235/HyperNotice") {
                         try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "无法打开浏览器", Toast.LENGTH_SHORT).show() }
+                    }
+                    MiuiArrowItem("自检诊断") {
+                        val msg = onDiagnose()
+                        val alert = android.app.AlertDialog.Builder(ctx)
+                            .setTitle("自检结果")
+                            .setMessage(msg)
+                            .setPositiveButton("确定", null)
+                            .show()
                     }
                 }
                 Spacer(Modifier.height(80.dp))
