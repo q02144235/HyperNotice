@@ -34,6 +34,13 @@ android {
     aaptOptions {
         noCompress("xposed_init", "module.prop", "scope.list")
     }
+
+    packaging {
+        resources {
+            merges += "META-INF/xposed/*"
+            excludes += "**"
+        }
+    }
 }
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
@@ -42,5 +49,5 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
-    compileOnly(files("libs/api-82.jar"))
+    compileOnly("io.github.libxposed:api:102.0.0")
 }

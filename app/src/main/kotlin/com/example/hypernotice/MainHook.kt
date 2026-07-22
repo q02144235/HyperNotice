@@ -1,12 +1,12 @@
 package com.example.hypernotice
 
-import de.robv.android.xposed.IXposedHookLoadPackage
-import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.callbacks.XC_LoadPackage
+import io.github.libxposed.api.XposedModule
+import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 
-class MainHook : IXposedHookLoadPackage {
-    override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        if (lpparam.packageName != "com.android.systemui") return
-        XposedBridge.log("[HyperNotice] HELLO from MainHook! handleLoadPackage called for SystemUI")
+class HyperNoticeModule : XposedModule() {
+
+    override fun onPackageLoaded(param: PackageLoadedParam) {
+        if (param.packageName != "com.android.systemui") return
+        log("[HyperNotice] === SystemUI loaded ===")
     }
 }
