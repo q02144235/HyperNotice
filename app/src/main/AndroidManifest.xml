@@ -28,7 +28,7 @@
             android:value="53" />
         <meta-data
             android:name="xposedclass"
-            android:value="com.example.hypernotice.MainHook" />
+            android:value="com.example.hypernotice.EntryHook" />
     </application>
 </manifest>
 
