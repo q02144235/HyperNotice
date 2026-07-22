@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.INTERNET"/>
-
     <application
         android:label="HyperNotice"
         android:allowBackup="true"
@@ -16,22 +14,9 @@
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS"/>
-            </intent-filter>
-        </activity>
-
-        <activity-alias
-            android:name=".SettingsActivityAlias"
-            android:targetActivity=".SettingsActivity"
-            android:enabled="true"
-            android:exported="true"
-            android:label="HyperNotice"
-            android:icon="@mipmap/ic_launcher">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity-alias>
+        </activity>
 
         <meta-data
             android:name="xposedmodule"
