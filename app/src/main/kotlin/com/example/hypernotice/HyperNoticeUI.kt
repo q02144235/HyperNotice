@@ -1,7 +1,6 @@
 package com.example.hypernotice
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.view.View
@@ -18,7 +17,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -213,32 +211,30 @@ fun SliderPage(onBack: () -> Unit) {
     val scrollState = rememberScrollState()
 
     if (showRestartDialog) {
-        androidx.compose.material3.AlertDialog(
+        AlertDialog(
             onDismissRequest = { showRestartDialog = false },
-            title = { Text("?????????") },
-            text = { Text("??????????????????????????????????????????????) },
+            title = { Text("重启系统界面") },
+            text = { Text("更改位置和外观参数后需要重启系统界面才会生效，确定要重启吗？") },
             confirmButton = {
                 TextButton(onClick = {
                     showRestartDialog = false
-                    Toast.makeText(ctx, "??????????????, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, "正在重启系统界面…", Toast.LENGTH_SHORT).show()
                     try {
                         Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop com.android.systemui"))
                     } catch (_: Exception) {
                         try {
                             Runtime.getRuntime().exec(arrayOf("am", "force-stop", "com.android.systemui"))
                         } catch (_: Exception) {
-                            Toast.makeText(ctx, "?????????????????????", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, "重启失败，请手动重启系统界面", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }) { Text("???") }
+                }) { Text("重启") }
             },
             dismissButton = {
-                TextButton(onClick = { showRestartDialog = false }) { Text("???") }
+                TextButton(onClick = { showRestartDialog = false }) { Text("取消") }
             }
         )
     }
-
-    BackHandler(enabled = true) { onBack() }
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -258,15 +254,15 @@ fun SliderPage(onBack: () -> Unit) {
                 Text("\u21BB", color = Color(0xFF8E8E93), fontSize = 24.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(remember { MutableInteractionSource() }, null) { showRestartDialog = true })
             }
-            Text("????????, color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
+            Text("位置与外观", color = Color.Black, fontSize = 32.sp, fontWeight = FontWeight.Medium,
                 modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
-            Text("??????", color = C_Sub, fontSize = 13.sp,
+            Text("位置调整", color = C_Sub, fontSize = 13.sp,
                 modifier = Modifier.offset(x = 30.dp).padding(bottom = 2.dp))
             MiuiCard {
                 var y by remember { mutableFloatStateOf(prefs.getFloat("y_offset", 45f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("Y ?????, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("Y 轴偏移", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${y.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -275,7 +271,7 @@ fun SliderPage(onBack: () -> Unit) {
                 var d by remember { mutableFloatStateOf(prefs.getFloat("anim_duration", 300f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("??????", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("动画时长", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${d.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -284,7 +280,7 @@ fun SliderPage(onBack: () -> Unit) {
                 var t by remember { mutableFloatStateOf(prefs.getFloat("corner_radius", 16f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("??????", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("圆角大小", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${t.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -293,7 +289,7 @@ fun SliderPage(onBack: () -> Unit) {
                 var o by remember { mutableFloatStateOf(prefs.getFloat("opacity", 95f)) }
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                        Text("?????, color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("透明度", color = C_Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                         Text("${o.roundToInt()}", color = C_Sub, fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(10.dp))
@@ -349,41 +345,41 @@ fun HyperNoticeApp() {
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("???????, color = C_Sub, fontSize = 13.sp,
+                Text("功能开关", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    // ??????????????                    var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
-                    SwitchItem("????????????????", replaceText) {
+                    var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
+                    SwitchItem("将通知替换为通知通知", replaceText) {
                         replaceText = it; prefs.edit().putBoolean("replace_text", it).apply()
                     }
                     var hideStatus by remember { mutableStateOf(prefs.getBoolean("hide_status_bar", false)) }
-                    SwitchItem("???????????????", hideStatus) {
+                    SwitchItem("焦点通知时隐藏状态栏", hideStatus) {
                         hideStatus = it; prefs.edit().putBoolean("hide_status_bar", it).apply()
                     }
                     var moveUp by remember { mutableStateOf(prefs.getBoolean("move_up_punchhole", false)) }
-                    SwitchItem("???????????????", moveUp) {
+                    SwitchItem("焦点通知上移融入前摄", moveUp) {
                         moveUp = it; prefs.edit().putBoolean("move_up_punchhole", it).apply()
                     }
                     var darkBg by remember { mutableStateOf(prefs.getBoolean("dark_bg", false)) }
-                    SwitchItem("???????????????", darkBg) {
+                    SwitchItem("焦点通知背景改为纯黑", darkBg) {
                         darkBg = it; prefs.edit().putBoolean("dark_bg", it).apply()
                     }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("??????", color = C_Sub, fontSize = 13.sp,
+                Text("位置调整", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
-                    MiuiArrowItem("????????) { sh = true }
+                    MiuiArrowItem("位置与外观") { sh = true }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("???", color = C_Sub, fontSize = 13.sp,
+                Text("关于", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
                     MiuiArrowItemWithSummary("HyperNotice", "v1.0.0") {
                         Toast.makeText(ctx, "HyperNotice v1.0.0", Toast.LENGTH_SHORT).show()
                     }
                     MiuiArrowItemWithSummary("GitHub", "q02144235/HyperNotice") {
-                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "???????????, Toast.LENGTH_SHORT).show() }
+                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/q02144235/HyperNotice"))) } catch (_: Exception) { Toast.makeText(ctx, "无法打开浏览器", Toast.LENGTH_SHORT).show() }
                     }
                 }
                 Spacer(Modifier.height(80.dp))
@@ -393,7 +389,7 @@ fun HyperNoticeApp() {
         AnimatedVisibility(
             visible = sh,
             enter = slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)),
-            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 4 }
+            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it }
         ) {
             SliderPage { sh = false }
         }
