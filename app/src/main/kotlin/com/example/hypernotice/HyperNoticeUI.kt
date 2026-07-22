@@ -1,6 +1,7 @@
 package com.example.hypernotice
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.view.View
@@ -17,6 +18,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -211,7 +213,7 @@ fun SliderPage(onBack: () -> Unit) {
     val scrollState = rememberScrollState()
 
     if (showRestartDialog) {
-        AlertDialog(
+        androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRestartDialog = false },
             title = { Text("重启系统界面") },
             text = { Text("更改位置和外观参数后需要重启系统界面才会生效，确定要重启吗？") },
@@ -235,6 +237,8 @@ fun SliderPage(onBack: () -> Unit) {
             }
         )
     }
+
+    BackHandler(enabled = true) { onBack() }
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -348,6 +352,7 @@ fun HyperNoticeApp() {
                 Text("功能开关", color = C_Sub, fontSize = 13.sp,
                     modifier = Modifier.offset(x = 30.dp).padding(bottom = 4.dp))
                 MiuiCard {
+                    // 按用户要求重新排序
                     var replaceText by remember { mutableStateOf(prefs.getBoolean("replace_text", false)) }
                     SwitchItem("将通知替换为通知通知", replaceText) {
                         replaceText = it; prefs.edit().putBoolean("replace_text", it).apply()
@@ -389,7 +394,7 @@ fun HyperNoticeApp() {
         AnimatedVisibility(
             visible = sh,
             enter = slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)),
-            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it }
+            exit = fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 4 }
         ) {
             SliderPage { sh = false }
         }
